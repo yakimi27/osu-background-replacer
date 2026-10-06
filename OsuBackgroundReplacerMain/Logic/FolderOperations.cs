@@ -1,5 +1,7 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
+using OsuBackgroundReplacerMain.Services;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -7,13 +9,46 @@ using Windows.Storage.Pickers;
 
 namespace OsuBackgroundReplacerMain.Logic
 {
-    class FolderOperations
+    public static class FolderOperations
     {
-        private static string _selectedPath;
+        private static string? _selectedPath;
 
-        public static string getPath()
+        public static event Action? PathChanged;
+
+        public static string? getPath()
         {
+            if (string.IsNullOrEmpty(_selectedPath) && SettingsService.Current.SaveLastFolderPath)
+            {
+                _selectedPath = SettingsService.Current.LastFolderPath;
+            }
             return _selectedPath;
+        }
+
+        public static void setPath(string? path)
+        {
+            _selectedPath = path;
+            if (SettingsService.Current.SaveLastFolderPath && !string.IsNullOrEmpty(path))
+            {
+                SettingsService.Current.LastFolderPath = path;
+                SettingsService.Save();
+            }
+            PathChanged?.Invoke();
+        }
+
+        public static int GetBeatmapCount()
+        {
+            try
+            {
+                string? path = getPath();
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                {
+                    return Directory.GetDirectories(path).Length;
+                }
+            }
+            catch
+            {
+            }
+            return 0;
         }
 
         public static async Task ChooseFolderManually(Window window)
@@ -31,7 +66,7 @@ namespace OsuBackgroundReplacerMain.Logic
                 StorageFolder folder = await folderPicker.PickSingleFolderAsync();
                 if (folder != null)
                 {
-                    _selectedPath = folder.Path;
+                    setPath(folder.Path);
                 }
             }
             catch (Exception exception)
@@ -52,7 +87,7 @@ namespace OsuBackgroundReplacerMain.Logic
                         var folder = items[0] as StorageFolder;
                         if (folder != null)
                         {
-                            _selectedPath = folder.Path;
+                            setPath(folder.Path);
                         }
                         else
                         {
