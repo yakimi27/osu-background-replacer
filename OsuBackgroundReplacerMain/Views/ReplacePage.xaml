@@ -1,0 +1,268 @@
+<Page
+    x:Class="OsuBackgroundReplacerMain.Views.ReplacePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:OsuBackgroundReplacerMain.Controls"
+    mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="36,24,36,36">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Stretch" Spacing="24">
+
+            <!-- header -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Replace Backgrounds" Style="{ThemeResource TitleLargeTextBlockStyle}" />
+                <TextBlock Text="Replace background art across all your osu! songs and beatmaps in one operation."
+                           Style="{ThemeResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- infobar -->
+            <InfoBar x:Name="StatusInfoBar"
+                     IsOpen="False"
+                     IsClosable="True"
+                     Margin="0,0,0,4" />
+
+            <!-- SECTION 1: SONGS DIRECTORY -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="Target Directory" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="18">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8"
+                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xED25;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="osu! Songs Directory" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                <TextBlock x:Name="FolderPathTextBlock"
+                                           Text="No folder selected"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button x:Name="AutoDetectButton" Click="AutoDetect_Click" ToolTipService.ToolTip="Auto-detect osu! Songs folder">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE895;" FontSize="14" />
+                                        <TextBlock Text="Auto-detect" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="BrowseFolderButton" Click="BrowseFolder_Click" Style="{ThemeResource AccentButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xED25;" FontSize="14" />
+                                        <TextBlock Text="Browse..." />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="OpenFolderButton" Click="OpenFolder_Click" ToolTipService.ToolTip="Open in File Explorer" IsEnabled="False">
+                                    <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- drag & drop -->
+                        <Border x:Name="FolderDropZone"
+                                Height="84"
+                                CornerRadius="6"
+                                BorderThickness="1.5"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                Background="{ThemeResource ControlFillColorTransparentBrush}"
+                                AllowDrop="True"
+                                DragOver="OnDragOver"
+                                DragLeave="FolderDropZone_DragLeave"
+                                Drop="DropFolder">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                <FontIcon Glyph="&#xED25;" FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="Drag &amp; drop your osu! Songs folder here"
+                                           Style="{ThemeResource BodyTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- beatmap count -->
+                        <Grid x:Name="FolderStatusGrid" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon x:Name="FolderStatusIcon" Glyph="&#xE73E;" FontSize="14" Foreground="Green" />
+                                <TextBlock x:Name="FolderStatusTextBlock"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Text="0 beatmaps found" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- SECTION 2: REPLACEMENT IMAGE -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="Replacement Image" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="18">
+                    <StackPanel Spacing="14">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="8"
+                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xEB9F;" FontSize="20" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="New Background Art" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                                <TextBlock x:Name="ImagePathTextBlock"
+                                           Text="No image selected"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button x:Name="BrowseImageButton" Click="BrowseImage_Click" Style="{ThemeResource AccentButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xEB9F;" FontSize="14" />
+                                        <TextBlock Text="Browse Image..." />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- drag & drop -->
+                        <Border x:Name="ImageDropZone"
+                                Height="84"
+                                CornerRadius="6"
+                                BorderThickness="1.5"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                Background="{ThemeResource ControlFillColorTransparentBrush}"
+                                AllowDrop="True"
+                                DragOver="OnDragOver"
+                                DragLeave="ImageDropZone_DragLeave"
+                                Drop="DropFile">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                <FontIcon Glyph="&#xEB9F;" FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="Drag &amp; drop replacement picture here (.jpg, .jpeg, .png)"
+                                           Style="{ThemeResource BodyTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- image preview -->
+                        <Border x:Name="ImagePreviewContainer"
+                                Visibility="Collapsed"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" CornerRadius="4" Width="120" Height="70" Background="Black">
+                                    <Image x:Name="ImagePreviewThumbnail" Stretch="UniformToFill" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                    <TextBlock x:Name="ImageNameTextBlock" Style="{ThemeResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="ImageMetaTextBlock" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <Button Grid.Column="2" Click="ClearImage_Click" ToolTipService.ToolTip="Clear selection" VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- SECTION 3: ACTION & PROGRESS -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="18">
+                <StackPanel Spacing="14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="Ready to Replace" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                            <TextBlock x:Name="ActionStatusSubtitle"
+                                       Text="All matching images inside your osu! Songs folders will be overwritten with the chosen picture."
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CancelButton"
+                                    Content="Cancel"
+                                    Click="Cancel_Click"
+                                    Visibility="Collapsed" />
+                            <Button x:Name="ReplaceButton"
+                                    Click="Replace_Click"
+                                    Style="{ThemeResource AccentButtonStyle}"
+                                    Height="40"
+                                    Padding="24,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE896;" FontSize="16" />
+                                    <TextBlock Text="Replace Backgrounds" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- progress -->
+                    <StackPanel x:Name="ProgressSection" Visibility="Collapsed" Spacing="8">
+                        <ProgressBar x:Name="ReplacingProgressBar" Minimum="0" Maximum="100" Value="0" Height="6" CornerRadius="3" />
+                        <Grid>
+                            <TextBlock x:Name="ProgressDetailTextBlock"
+                                       Text="Replacing backgrounds..."
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       HorizontalAlignment="Left"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxWidth="600" />
+                            <TextBlock x:Name="ProgressPercentTextBlock"
+                                       Text="0%"
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       HorizontalAlignment="Right" />
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,145 @@
+<Page
+    x:Class="OsuBackgroundReplacerMain.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:OsuBackgroundReplacerMain.Controls"
+    mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="36,24,36,36">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Stretch" Spacing="24">
+
+            <!-- Page Header -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}" />
+                <TextBlock Text="Customize application preferences and appearance."
+                           Style="{ThemeResource BodyTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <InfoBar x:Name="SettingsInfoBar"
+                     IsOpen="False"
+                     IsClosable="True"
+                     Margin="0,0,0,4" />
+
+            <!-- SECTION 1: WORKFLOW PREFERENCES -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="Workflow Preferences" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <controls:SettingsCard
+                    Glyph="&#xE73E;"
+                    Header="Confirm before replacing"
+                    Description="Show a confirmation prompt with folder details before overwriting beatmap images">
+                    <ToggleSwitch x:Name="ConfirmToggle"
+                                  Toggled="ConfirmToggle_Toggled"
+                                  OnContent=""
+                                  OffContent=""
+                                  MinWidth="0" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
+                    Glyph="&#xED25;"
+                    Header="Remember last Songs folder"
+                    Description="Automatically save and restore your chosen osu! Songs directory between sessions">
+                    <ToggleSwitch x:Name="SaveFolderToggle"
+                                  Toggled="SaveFolderToggle_Toggled"
+                                  OnContent=""
+                                  OffContent=""
+                                  MinWidth="0" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
+                    Glyph="&#xEB9F;"
+                    Header="Remember last image file"
+                    Description="Automatically keep your chosen background image path ready for subsequent runs">
+                    <ToggleSwitch x:Name="SaveImageToggle"
+                                  Toggled="SaveImageToggle_Toggled"
+                                  OnContent=""
+                                  OffContent=""
+                                  MinWidth="0" />
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- SECTION 2: APPEARANCE -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <controls:SettingsCard
+                    Glyph="&#xE790;"
+                    Header="App theme"
+                    Description="Select which visual theme to display across the application">
+                    <ComboBox x:Name="ThemeComboBox"
+                              SelectionChanged="ThemeComboBox_SelectionChanged"
+                              MinWidth="160">
+                        <ComboBoxItem Content="Use system setting" Tag="Default" />
+                        <ComboBoxItem Content="Light" Tag="Light" />
+                        <ComboBoxItem Content="Dark" Tag="Dark" />
+                    </ComboBox>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- SECTION 3: OSU INTEGRATION -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="osu! Detection" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <controls:SettingsCard
+                    Glyph="&#xE71E;"
+                    Header="Auto-detected Songs directory"
+                    Description="Check standard installation paths for your osu! Songs directory">
+                    <Button Click="RedetectPath_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE895;" FontSize="14" />
+                            <TextBlock Text="Detect Now" />
+                        </StackPanel>
+                    </Button>
+                </controls:SettingsCard>
+            </StackPanel>
+
+            <!-- SECTION 4: ABOUT -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="18">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                VerticalAlignment="Center">
+                            <FontIcon Glyph="&#xE946;" FontSize="22" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="osu! Background Replacer" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="Version 2.0.0 • Modern Windows 11 Fluent 2 Edition"
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="Crafted for batch updating osu! beatmap background art with speed and safety."
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+
+                        <HyperlinkButton Grid.Column="2"
+                                         NavigateUri="https://github.com"
+                                         VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                                <TextBlock Text="Source" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>
