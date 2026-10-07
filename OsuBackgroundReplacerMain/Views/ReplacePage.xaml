@@ -209,7 +209,39 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="18">
-                <StackPanel Spacing="14">
+                <StackPanel Spacing="16">
+                    <!-- Backup & Restore options row -->
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                            <ToggleSwitch x:Name="BackupToggle"
+                                          Header="Backup original backgrounds"
+                                          IsOn="False"
+                                          Toggled="BackupToggle_Toggled"
+                                          OffContent="Off"
+                                          OnContent="On" />
+                            <TextBlock Text="Save original backgrounds into %LocalAppData%\yakimi27\OsuBackgroundReplacer\Backups before replacing."
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <Button x:Name="UndoButton"
+                                Grid.Column="1"
+                                Click="Undo_Click"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE7A7;" FontSize="14" />
+                                <TextBlock Text="Undo last replacement" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <MenuFlyoutSeparator />
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

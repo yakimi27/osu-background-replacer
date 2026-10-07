@@ -20,6 +20,7 @@ namespace OsuBackgroundReplacerMain.Views
             _isInitializing = true;
 
             ConfirmToggle.IsOn = SettingsService.Current.ConfirmBeforeReplace;
+            BackupToggle.IsOn = SettingsService.Current.BackupOriginalBackgrounds;
             SaveFolderToggle.IsOn = SettingsService.Current.SaveLastFolderPath;
             SaveImageToggle.IsOn = SettingsService.Current.SaveLastImagePath;
 
@@ -39,6 +40,13 @@ namespace OsuBackgroundReplacerMain.Views
         {
             if (_isInitializing) return;
             SettingsService.Current.ConfirmBeforeReplace = ConfirmToggle.IsOn;
+            SettingsService.Save();
+        }
+
+        private void BackupToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+            SettingsService.Current.BackupOriginalBackgrounds = BackupToggle.IsOn;
             SettingsService.Save();
         }
 

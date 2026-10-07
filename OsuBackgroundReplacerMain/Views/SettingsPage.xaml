@@ -39,6 +39,17 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    Glyph="&#xE777;"
+                    Header="Backup original backgrounds"
+                    Description="Save original backgrounds into LocalAppData Backups folder before replacing them">
+                    <ToggleSwitch x:Name="BackupToggle"
+                                  Toggled="BackupToggle_Toggled"
+                                  OnContent=""
+                                  OffContent=""
+                                  MinWidth="0" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     Glyph="&#xED25;"
                     Header="Remember last Songs folder"
                     Description="Automatically save and restore your chosen osu! Songs directory between sessions">

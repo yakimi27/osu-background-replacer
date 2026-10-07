@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -24,12 +25,28 @@ namespace OsuBackgroundReplacerMain.Views
             this.Loaded += ReplacePage_Loaded;
             FolderOperations.PathChanged += UpdateFolderUI;
             ImageOperations.PathChanged += UpdateImageUI;
+            SettingsService.SettingsChanged += UpdateSettingsUI;
         }
 
         private void ReplacePage_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateFolderUI();
             UpdateImageUI();
+            UpdateSettingsUI();
+        }
+
+        private void UpdateSettingsUI()
+        {
+            BackupToggle.IsOn = SettingsService.Current.BackupOriginalBackgrounds;
+        }
+
+        private void BackupToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (SettingsService.Current.BackupOriginalBackgrounds != BackupToggle.IsOn)
+            {
+                SettingsService.Current.BackupOriginalBackgrounds = BackupToggle.IsOn;
+                SettingsService.Save();
+            }
         }
 
         private void UpdateFolderUI()
@@ -218,13 +235,138 @@ namespace OsuBackgroundReplacerMain.Views
                 }
                 else
                 {
-                    ShowInfo($"Successfully replaced {replaced.Count:N0} backgrounds! Check Activity Log for full details.", InfoBarSeverity.Success);
+                    var backupResult = Operations.LastBackupResult;
+                    var repErrors = Operations.LastReplacementErrors;
+                    int totalErrors = (backupResult?.FailedCount ?? 0) + repErrors.Count;
+
+                    if (totalErrors > 0)
+                    {
+                        var errorLines = new List<string>();
+                        if (backupResult != null && backupResult.FailedCount > 0)
+                        {
+                            errorLines.Add($"Backup errors ({backupResult.FailedCount}):");
+                            errorLines.AddRange(backupResult.Errors.Take(10).Select(e => $"• {Path.GetFileName(e.FilePath)}: {e.ErrorMessage}"));
+                        }
+                        if (repErrors.Count > 0)
+                        {
+                            errorLines.Add($"Replacement errors ({repErrors.Count}):");
+                            errorLines.AddRange(repErrors.Take(10).Select(e => $"• {Path.GetFileName(e.FilePath)}: {e.ErrorMessage}"));
+                        }
+                        if (totalErrors > 20)
+                        {
+                            errorLines.Add($"... and {totalErrors - 20} more error(s).");
+                        }
+
+                        string dialogContent = $"Replacement finished with {totalErrors} issue(s).\nSuccessfully replaced: {replaced.Count:N0}\n\n" + string.Join("\n", errorLines);
+                        await MainWindow.ShowDialogAsync(dialogContent, "Replacement Warnings");
+                        ShowInfo($"Replaced {replaced.Count:N0} backgrounds with {totalErrors} issue(s). Check Activity Log for details.", InfoBarSeverity.Warning);
+                    }
+                    else
+                    {
+                        string backupMsg = (backupResult != null && backupResult.BackedUpCount > 0)
+                            ? $" ({backupResult.BackedUpCount:N0} backed up)"
+                            : "";
+                        ShowInfo($"Successfully replaced {replaced.Count:N0} backgrounds{backupMsg}! Check Activity Log for full details.", InfoBarSeverity.Success);
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                SetProcessing(false);
+                ShowInfo("Operation cancelled.", InfoBarSeverity.Warning);
             }
             catch (Exception ex)
             {
                 SetProcessing(false);
                 ShowInfo($"Error during replacement: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void Undo_Click(object sender, RoutedEventArgs e)
+        {
+            var backupService = new BackupService();
+            string? latestSession = backupService.GetLatestSessionDirectory();
+
+            if (string.IsNullOrEmpty(latestSession))
+            {
+                await MainWindow.ShowDialogAsync("No backup sessions were found to restore.", "Undo Last Replacement");
+                ShowInfo("No backup sessions available.", InfoBarSeverity.Informational);
+                return;
+            }
+
+            string sessionName = Path.GetFileName(latestSession);
+            var confirm = await MainWindow.ShowDialogAsync(
+                $"Restore original backgrounds from the most recent backup session ({sessionName})?\n\nThis will verify file hashes, skip missing files gracefully, and restore the original images.",
+                "Confirm Undo", "Yes, Restore", "Cancel");
+
+            if (confirm != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            SetProcessing(true);
+            _cts = new CancellationTokenSource();
+            StatusInfoBar.IsOpen = false;
+            ProgressSection.Visibility = Visibility.Visible;
+            ReplacingProgressBar.Value = 0;
+            ProgressPercentTextBlock.Text = "0%";
+            ProgressDetailTextBlock.Text = "Restoring backgrounds from backup...";
+
+            var progress = new Progress<RestoreProgress>(p =>
+            {
+                ReplacingProgressBar.Value = p.Percentage;
+                ProgressPercentTextBlock.Text = $"{p.Percentage}%";
+                ProgressDetailTextBlock.Text = $"Restoring {p.Current:N0} of {p.Total:N0}: {p.CurrentFile}";
+            });
+
+            try
+            {
+                var result = await backupService.RestoreLastBackupAsync(progress, _cts.Token);
+                SetProcessing(false);
+
+                foreach (var item in result.Items)
+                {
+                    if (item.Status == RestoreStatus.Restored)
+                    {
+                        LogService.AddEntry(item.OriginalPath, true, "Restored from backup");
+                    }
+                    else if (item.Status == RestoreStatus.Failed)
+                    {
+                        LogService.AddEntry(item.OriginalPath, false, $"Restore failed: {item.ErrorMessage}");
+                    }
+                }
+
+                string summary = $"Undo Operation Summary:\n\n• Restored: {result.RestoredCount:N0}\n• Skipped: {result.SkippedCount:N0}\n• Failed: {result.FailedCount:N0}";
+
+                if (result.FailedCount > 0)
+                {
+                    var errorLines = result.Errors.Take(10).Select(err => $"• {Path.GetFileName(err.OriginalPath)}: {err.ErrorMessage}");
+                    string errorDetails = string.Join("\n", errorLines);
+                    if (result.FailedCount > 10)
+                    {
+                        errorDetails += $"\n... and {result.FailedCount - 10} more error(s).";
+                    }
+
+                    string fullContent = $"{summary}\n\nErrors encountered:\n{errorDetails}";
+                    await MainWindow.ShowDialogAsync(fullContent, "Undo Summary - Issues Encountered");
+                    ShowInfo($"Undo completed with {result.FailedCount:N0} failed, {result.RestoredCount:N0} restored, {result.SkippedCount:N0} skipped.", InfoBarSeverity.Warning);
+                }
+                else
+                {
+                    await MainWindow.ShowDialogAsync(summary, "Undo Completed Successfully");
+                    ShowInfo($"Successfully restored {result.RestoredCount:N0} backgrounds from backup ({result.SkippedCount:N0} skipped).", InfoBarSeverity.Success);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                SetProcessing(false);
+                ShowInfo("Undo operation cancelled.", InfoBarSeverity.Warning);
+            }
+            catch (Exception ex)
+            {
+                SetProcessing(false);
+                await MainWindow.ShowDialogAsync($"Error during undo: {ex.Message}", "Undo Error");
+                ShowInfo($"Error during undo: {ex.Message}", InfoBarSeverity.Error);
             }
         }
 
@@ -238,6 +380,8 @@ namespace OsuBackgroundReplacerMain.Views
         {
             _isProcessing = processing;
             ReplaceButton.IsEnabled = !processing;
+            UndoButton.IsEnabled = !processing;
+            BackupToggle.IsEnabled = !processing;
             BrowseFolderButton.IsEnabled = !processing;
             BrowseImageButton.IsEnabled = !processing;
             AutoDetectButton.IsEnabled = !processing;
@@ -253,7 +397,7 @@ namespace OsuBackgroundReplacerMain.Views
                 StatusInfoBar.IsOpen = false;
                 ReplacingProgressBar.Value = 0;
                 ProgressPercentTextBlock.Text = "0%";
-                ProgressDetailTextBlock.Text = "Scanning beatmap directories...";
+                ProgressDetailTextBlock.Text = "Starting operation...";
             }
         }
 
