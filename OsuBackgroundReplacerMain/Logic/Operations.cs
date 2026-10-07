@@ -18,13 +18,21 @@ namespace OsuBackgroundReplacerMain.Logic
 
     internal class Operations
     {
+        public static BackupSessionResult? LastBackupResult { get; private set; }
+        public static List<FileErrorInfo> LastReplacementErrors { get; } = new();
+
         public static async Task<List<string>> Replacement(
             IProgress<ReplacementProgress>? detailedProgress = null,
             IProgress<int>? simpleProgress = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool? enableBackup = null,
+            IBackupService? backupService = null)
         {
             try
             {
+                LastBackupResult = null;
+                LastReplacementErrors.Clear();
+
                 string? imagePath = ImageOperations.getPath();
                 string? folderPath = FolderOperations.getPath();
 
@@ -78,6 +86,42 @@ namespace OsuBackgroundReplacerMain.Logic
                     cancellationToken
                 );
 
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return replacedFiles;
+                }
+
+                // Execute backup if enabled
+                bool shouldBackup = enableBackup ?? SettingsService.Current.BackupOriginalBackgrounds;
+                if (shouldBackup && allImageFiles.Count > 0)
+                {
+                    backupService ??= new BackupService();
+
+                    detailedProgress?.Report(new ReplacementProgress
+                    {
+                        Current = 0,
+                        Total = allImageFiles.Count,
+                        CurrentFile = "Backing up original backgrounds..."
+                    });
+
+                    var backupProgress = new Progress<BackupProgress>(bp =>
+                    {
+                        detailedProgress?.Report(new ReplacementProgress
+                        {
+                            Current = bp.Current,
+                            Total = bp.Total,
+                            CurrentFile = $"Backing up: {bp.CurrentFile}"
+                        });
+                        simpleProgress?.Report(bp.Percentage);
+                    });
+
+                    LastBackupResult = await backupService.CreateBackupSessionAsync(
+                        allImageFiles,
+                        folderPath,
+                        backupProgress,
+                        cancellationToken);
+                }
+
                 int total = allImageFiles.Count;
                 int current = 0;
 
@@ -94,10 +138,14 @@ namespace OsuBackgroundReplacerMain.Logic
                         replacedFiles.Add(imageFile);
                         LogService.AddEntry(imageFile, true);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                     catch (Exception exception)
                     {
                         LogService.AddEntry(imageFile, false, exception.Message);
-                        throw new Exception($"Issue copying to {imageFile}: {exception.Message}", exception);
+                        LastReplacementErrors.Add(new FileErrorInfo(imageFile, exception.Message));
                     }
 
                     current++;
@@ -112,9 +160,13 @@ namespace OsuBackgroundReplacerMain.Logic
 
                 return replacedFiles;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception exception)
             {
-                throw new InvalidOperationException(exception.Message);
+                throw new InvalidOperationException(exception.Message, exception);
             }
         }
     }
