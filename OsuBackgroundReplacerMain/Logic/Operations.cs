@@ -39,12 +39,44 @@ namespace OsuBackgroundReplacerMain.Logic
                 List<string> replacedFiles = new List<string>();
 
                 var allImageFiles = await Task.Run(() =>
-                        Directory.GetDirectories(folderPath)
-                        .SelectMany(folder => Directory.GetFiles(folder, "*.*"))
-                        .Where(f => Constants.IsSupportedImage(f))
-                        .ToList(),
-                        cancellationToken
-                    );
+                    {
+                        var targets = new List<string>();
+                        string fullFolderPath = Path.GetFullPath(folderPath);
+
+                        foreach (var beatmapFolder in Directory.GetDirectories(folderPath))
+                        {
+                            var backgroundFilenames = OsuBeatmapParser.GetBackgroundFiles(beatmapFolder);
+                            if (backgroundFilenames.Count == 0)
+                            {
+                                continue;
+                            }
+
+                            string fullBeatmapFolder = Path.GetFullPath(beatmapFolder);
+
+                            foreach (var bgFileName in backgroundFilenames)
+                            {
+                                try
+                                {
+                                    string resolvedPath = Path.GetFullPath(Path.Combine(beatmapFolder, bgFileName));
+
+                                    // Guard against path traversal like ..\ to ensure the resolved file is inside the beatmap folder
+                                    if (resolvedPath.StartsWith(fullBeatmapFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                                        && File.Exists(resolvedPath))
+                                    {
+                                        targets.Add(resolvedPath);
+                                    }
+                                }
+                                catch
+                                {
+                                    // Skip invalid path formats
+                                }
+                            }
+                        }
+
+                        return targets;
+                    },
+                    cancellationToken
+                );
 
                 int total = allImageFiles.Count;
                 int current = 0;
