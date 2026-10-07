@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <Compile Include="..\OsuBackgroundReplacerMain\Logic\OsuBeatmapParser.cs" Link="Logic\OsuBeatmapParser.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Services\BackupService.cs" Link="Services\BackupService.cs" />
   </ItemGroup>
 
 </Project>
