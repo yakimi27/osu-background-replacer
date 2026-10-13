@@ -23,6 +23,9 @@ namespace OsuBackgroundReplacerMain.Services
 
         [JsonPropertyName("sha256")]
         public string Sha256 { get; set; } = string.Empty;
+
+        [JsonPropertyName("relativePath")]
+        public string? RelativePath { get; set; }
     }
 
     public class BackupManifest
@@ -30,8 +33,25 @@ namespace OsuBackgroundReplacerMain.Services
         [JsonPropertyName("timestamp")]
         public DateTimeOffset Timestamp { get; set; }
 
+        [JsonPropertyName("completed")]
+        public bool? Completed { get; set; }
+
         [JsonPropertyName("entries")]
         public List<BackupManifestEntry> Entries { get; set; } = new();
+    }
+
+    public class BackupSessionInfo
+    {
+        public string Directory { get; }
+        public DateTimeOffset Timestamp { get; }
+        public int FileCount { get; }
+
+        public BackupSessionInfo(string directory, DateTimeOffset timestamp, int fileCount)
+        {
+            Directory = directory;
+            Timestamp = timestamp;
+            FileCount = fileCount;
+        }
     }
 
     public class FileErrorInfo
@@ -87,6 +107,12 @@ namespace OsuBackgroundReplacerMain.Services
         public List<BackupManifestEntry> Entries { get; set; } = new();
         public List<FileErrorInfo> Errors { get; set; } = new();
         public bool Success => FailedCount == 0;
+
+        public bool IsBackedUp(string filePath)
+        {
+            string full = Path.GetFullPath(filePath);
+            return Entries.Any(e => string.Equals(e.OriginalPath, full, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     public class RestoreSessionResult
@@ -113,12 +139,15 @@ namespace OsuBackgroundReplacerMain.Services
             CancellationToken cancellationToken = default);
         Task<RestoreSessionResult> RestoreLastBackupAsync(
             IProgress<RestoreProgress>? progress = null,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            string? songsFolderPath = null);
         Task<RestoreSessionResult> RestoreBackupSessionAsync(
             string sessionDirectory,
             IProgress<RestoreProgress>? progress = null,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            string? songsFolderPath = null);
         string? GetLatestSessionDirectory();
+        BackupSessionInfo? GetLatestSessionInfo();
         List<string> GetBackupSessions();
     }
 
@@ -175,6 +204,8 @@ namespace OsuBackgroundReplacerMain.Services
                 return result;
             }
 
+            var storedOriginals = LoadStoredOriginals();
+
             Directory.CreateDirectory(_baseBackupDirectory);
 
             string sessionName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
@@ -191,18 +222,41 @@ namespace OsuBackgroundReplacerMain.Services
             int current = 0;
             foreach (var file in fileList)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 current++;
 
                 try
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     if (!File.Exists(file))
                     {
                         result.Errors.Add(new FileErrorInfo(file, "File does not exist."));
                         continue;
                     }
 
-                    string relativePath = GetRelativePath(file, rootFolderPath);
+                    string fullFile = Path.GetFullPath(file);
+                    string? songsRelative = GetRootRelativePath(fullFile, rootFolderPath);
+
+                    BackupManifestEntry? existing = null;
+                    if (!storedOriginals.TryGetValue("abs:" + fullFile, out existing) && songsRelative != null)
+                    {
+                        storedOriginals.TryGetValue("rel:" + songsRelative, out existing);
+                    }
+
+                    if (existing != null)
+                    {
+                        result.Entries.Add(new BackupManifestEntry
+                        {
+                            OriginalPath = fullFile,
+                            BackupPath = existing.BackupPath,
+                            RelativePath = songsRelative ?? existing.RelativePath,
+                            Timestamp = existing.Timestamp,
+                            Sha256 = existing.Sha256
+                        });
+                        continue;
+                    }
+
+                    string relativePath = songsRelative ?? GetRelativePath(file, rootFolderPath);
                     string backupPath = Path.Combine(sessionDir, relativePath);
 
                     string? parentDir = Path.GetDirectoryName(backupPath);
@@ -217,15 +271,16 @@ namespace OsuBackgroundReplacerMain.Services
 
                     result.Entries.Add(new BackupManifestEntry
                     {
-                        OriginalPath = Path.GetFullPath(file),
+                        OriginalPath = fullFile,
                         BackupPath = Path.GetFullPath(backupPath),
+                        RelativePath = songsRelative,
                         Timestamp = DateTimeOffset.Now,
                         Sha256 = sha256
                     });
                 }
                 catch (OperationCanceledException)
                 {
-                    await TryWriteManifestAsync(sessionDir, result.Timestamp, result.Entries);
+                    await TryWriteManifestAsync(sessionDir, result.Timestamp, result.Entries, completed: false);
                     throw;
                 }
                 catch (Exception ex)
@@ -243,37 +298,62 @@ namespace OsuBackgroundReplacerMain.Services
                 }
             }
 
-            await TryWriteManifestAsync(sessionDir, result.Timestamp, result.Entries);
+            if (!await TryWriteManifestAsync(sessionDir, result.Timestamp, result.Entries, completed: true))
+            {
+                foreach (var entry in result.Entries)
+                {
+                    result.Errors.Add(new FileErrorInfo(entry.OriginalPath, "Failed to write backup manifest."));
+                }
+                result.Entries.Clear();
+            }
 
             return result;
         }
 
-        private static async Task TryWriteManifestAsync(
+        private static async Task<bool> TryWriteManifestAsync(
             string sessionDir,
             DateTimeOffset timestamp,
-            List<BackupManifestEntry> entries)
+            List<BackupManifestEntry> entries,
+            bool completed)
         {
             try
             {
                 var manifest = new BackupManifest
                 {
                     Timestamp = timestamp,
+                    Completed = completed,
                     Entries = entries
                 };
 
                 string manifestPath = Path.Combine(sessionDir, "manifest.json");
                 string json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(manifestPath, json);
+                return true;
             }
             catch
             {
-                // Silently ignore or suppress manifest write issues during emergency cleanup
+                return false;
             }
+        }
+
+        private static string? ResolveTargetPath(BackupManifestEntry entry, string? songsFolderPath)
+        {
+            if (string.IsNullOrEmpty(songsFolderPath) || string.IsNullOrEmpty(entry.RelativePath))
+            {
+                return entry.OriginalPath;
+            }
+
+            string fullRoot = Path.GetFullPath(songsFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string target = Path.GetFullPath(Path.Combine(fullRoot, entry.RelativePath));
+            return target.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                ? target
+                : null;
         }
 
         public async Task<RestoreSessionResult> RestoreLastBackupAsync(
             IProgress<RestoreProgress>? progress = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? songsFolderPath = null)
         {
             string? latestSession = GetLatestSessionDirectory();
             if (string.IsNullOrEmpty(latestSession))
@@ -285,13 +365,14 @@ namespace OsuBackgroundReplacerMain.Services
                 };
             }
 
-            return await RestoreBackupSessionAsync(latestSession, progress, cancellationToken);
+            return await RestoreBackupSessionAsync(latestSession, progress, cancellationToken, songsFolderPath);
         }
 
         public async Task<RestoreSessionResult> RestoreBackupSessionAsync(
             string sessionDirectory,
             IProgress<RestoreProgress>? progress = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? songsFolderPath = null)
         {
             var result = new RestoreSessionResult
             {
@@ -325,23 +406,7 @@ namespace OsuBackgroundReplacerMain.Services
             try
             {
                 string json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                try
-                {
-                    manifest = JsonSerializer.Deserialize<BackupManifest>(json, options);
-                }
-                catch
-                {
-                    var list = JsonSerializer.Deserialize<List<BackupManifestEntry>>(json, options);
-                    if (list != null)
-                    {
-                        manifest = new BackupManifest
-                        {
-                            Timestamp = Directory.GetCreationTimeUtc(sessionDirectory),
-                            Entries = list
-                        };
-                    }
-                }
+                manifest = ParseManifestJson(json, sessionDirectory);
             }
             catch (Exception ex)
             {
@@ -361,6 +426,17 @@ namespace OsuBackgroundReplacerMain.Services
                 {
                     Status = RestoreStatus.Failed,
                     ErrorMessage = "manifest.json is empty or invalid."
+                });
+                return result;
+            }
+
+            if (manifest.Completed == false)
+            {
+                result.FailedCount = 1;
+                result.Items.Add(new RestoreItemResult
+                {
+                    Status = RestoreStatus.Failed,
+                    ErrorMessage = "Backup session is incomplete (cancelled or failed) and cannot be restored."
                 });
                 return result;
             }
@@ -387,19 +463,8 @@ namespace OsuBackgroundReplacerMain.Services
                         continue;
                     }
 
-                    string backupFile = entry.BackupPath;
-                    if (!File.Exists(backupFile))
-                    {
-                        // Check relative path inside session directory if moved
-                        string rel = GetRelativePath(entry.OriginalPath, null);
-                        string fallback = Path.Combine(sessionDirectory, rel);
-                        if (File.Exists(fallback))
-                        {
-                            backupFile = fallback;
-                        }
-                    }
+                    string backupFile = ResolveBackupFile(entry, sessionDirectory);
 
-                    // 1. Skip missing backup files gracefully
                     if (!File.Exists(backupFile))
                     {
                         result.SkippedCount++;
@@ -413,7 +478,6 @@ namespace OsuBackgroundReplacerMain.Services
                         continue;
                     }
 
-                    // 2. Verify hash
                     string actualHash;
                     try
                     {
@@ -445,14 +509,27 @@ namespace OsuBackgroundReplacerMain.Services
                         continue;
                     }
 
-                    // 3. Restore file
-                    string? targetDir = Path.GetDirectoryName(entry.OriginalPath);
+                    string? targetPath = ResolveTargetPath(entry, songsFolderPath);
+                    if (targetPath == null)
+                    {
+                        result.FailedCount++;
+                        result.Items.Add(new RestoreItemResult
+                        {
+                            OriginalPath = entry.OriginalPath,
+                            BackupPath = backupFile,
+                            Status = RestoreStatus.Failed,
+                            ErrorMessage = $"Relative path '{entry.RelativePath}' escapes the Songs folder."
+                        });
+                        continue;
+                    }
+
+                    string? targetDir = Path.GetDirectoryName(targetPath);
                     if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
                     {
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    await Task.Run(() => File.Copy(backupFile, entry.OriginalPath, true), cancellationToken);
+                    await Task.Run(() => File.Copy(backupFile, targetPath, true), cancellationToken);
 
                     result.RestoredCount++;
                     result.Items.Add(new RestoreItemResult
@@ -493,15 +570,28 @@ namespace OsuBackgroundReplacerMain.Services
 
         public string? GetLatestSessionDirectory()
         {
+            return GetValidSessions().FirstOrDefault()?.Directory;
+        }
+
+        public BackupSessionInfo? GetLatestSessionInfo()
+        {
+            return GetValidSessions().FirstOrDefault();
+        }
+
+        public List<string> GetBackupSessions()
+        {
+            return GetValidSessions().Select(s => s.Directory).ToList();
+        }
+
+        private List<BackupSessionInfo> GetValidSessions()
+        {
+            var sessions = new List<BackupSessionInfo>();
             if (!Directory.Exists(_baseBackupDirectory))
             {
-                return null;
+                return sessions;
             }
 
-            var dirs = Directory.GetDirectories(_baseBackupDirectory);
-            var validSessions = new List<(string Directory, DateTimeOffset Timestamp)>();
-
-            foreach (var dir in dirs)
+            foreach (var dir in Directory.GetDirectories(_baseBackupDirectory))
             {
                 string manifestPath = Path.Combine(dir, "manifest.json");
                 if (!File.Exists(manifestPath))
@@ -509,50 +599,133 @@ namespace OsuBackgroundReplacerMain.Services
                     continue;
                 }
 
-                DateTimeOffset timestamp = Directory.GetCreationTimeUtc(dir);
                 try
                 {
-                    string json = File.ReadAllText(manifestPath);
-                    using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("timestamp", out var tsProp) ||
-                        doc.RootElement.TryGetProperty("Timestamp", out tsProp))
+                    var manifest = ParseManifestJson(File.ReadAllText(manifestPath), dir);
+                    if (manifest == null || manifest.Completed == false || manifest.Entries == null || manifest.Entries.Count == 0)
                     {
-                        if (tsProp.TryGetDateTimeOffset(out var parsedTs))
-                        {
-                            timestamp = parsedTs;
-                        }
+                        continue;
                     }
+
+                    DateTimeOffset timestamp = manifest.Timestamp == default
+                        ? Directory.GetCreationTimeUtc(dir)
+                        : manifest.Timestamp;
+                    sessions.Add(new BackupSessionInfo(dir, timestamp, manifest.Entries.Count));
                 }
                 catch
                 {
                 }
-
-                validSessions.Add((dir, timestamp));
             }
 
-            if (validSessions.Count == 0)
+            return sessions
+                .OrderByDescending(s => s.Timestamp)
+                .ThenByDescending(s => Path.GetFileName(s.Directory), StringComparer.Ordinal)
+                .ToList();
+        }
+
+        private static BackupManifest? ParseManifestJson(string json, string sessionDirectory)
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            try
+            {
+                return JsonSerializer.Deserialize<BackupManifest>(json, options);
+            }
+            catch
+            {
+                var list = JsonSerializer.Deserialize<List<BackupManifestEntry>>(json, options);
+                return list == null
+                    ? null
+                    : new BackupManifest
+                    {
+                        Timestamp = Directory.GetCreationTimeUtc(sessionDirectory),
+                        Entries = list
+                    };
+            }
+        }
+
+        private Dictionary<string, BackupManifestEntry> LoadStoredOriginals()
+        {
+            var stored = new Dictionary<string, BackupManifestEntry>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var session in GetValidSessions().OrderBy(s => s.Timestamp))
+            {
+                BackupManifest? manifest;
+                try
+                {
+                    manifest = ParseManifestJson(File.ReadAllText(Path.Combine(session.Directory, "manifest.json")), session.Directory);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var entry in manifest?.Entries ?? new List<BackupManifestEntry>())
+                {
+                    if (string.IsNullOrWhiteSpace(entry.OriginalPath))
+                    {
+                        continue;
+                    }
+
+                    string backupFile = ResolveBackupFile(entry, session.Directory);
+                    if (!File.Exists(backupFile))
+                    {
+                        continue;
+                    }
+
+                    var resolved = new BackupManifestEntry
+                    {
+                        OriginalPath = entry.OriginalPath,
+                        BackupPath = backupFile,
+                        RelativePath = entry.RelativePath,
+                        Timestamp = entry.Timestamp,
+                        Sha256 = entry.Sha256
+                    };
+
+                    stored.TryAdd("abs:" + Path.GetFullPath(entry.OriginalPath), resolved);
+                    if (!string.IsNullOrEmpty(entry.RelativePath))
+                    {
+                        stored.TryAdd("rel:" + entry.RelativePath, resolved);
+                    }
+                }
+            }
+
+            return stored;
+        }
+
+        private static string ResolveBackupFile(BackupManifestEntry entry, string sessionDirectory)
+        {
+            if (File.Exists(entry.BackupPath))
+            {
+                return entry.BackupPath;
+            }
+
+            string rel = !string.IsNullOrEmpty(entry.RelativePath)
+                ? entry.RelativePath
+                : GetRelativePath(entry.OriginalPath, null);
+            string fallback = Path.Combine(sessionDirectory, rel);
+            return File.Exists(fallback) ? fallback : entry.BackupPath;
+        }
+
+        private static string? GetRootRelativePath(string fullFilePath, string? rootFolderPath)
+        {
+            if (string.IsNullOrEmpty(rootFolderPath))
             {
                 return null;
             }
 
-            return validSessions
-                .OrderByDescending(s => s.Timestamp)
-                .ThenByDescending(s => Path.GetFileName(s.Directory))
-                .First()
-                .Directory;
-        }
-
-        public List<string> GetBackupSessions()
-        {
-            if (!Directory.Exists(_baseBackupDirectory))
+            try
             {
-                return new List<string>();
+                string fullRoot = Path.GetFullPath(rootFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (fullFilePath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    return fullFilePath.Substring(fullRoot.Length + 1);
+                }
+            }
+            catch
+            {
             }
 
-            return Directory.GetDirectories(_baseBackupDirectory)
-                .Where(dir => File.Exists(Path.Combine(dir, "manifest.json")))
-                .OrderByDescending(dir => dir)
-                .ToList();
+            return null;
         }
 
         public static string GetRelativePath(string filePath, string? rootFolderPath)
