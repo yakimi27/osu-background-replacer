@@ -67,7 +67,6 @@ namespace OsuBackgroundReplacerMain.Logic
                                 {
                                     string resolvedPath = Path.GetFullPath(Path.Combine(beatmapFolder, bgFileName));
 
-                                    // Guard against path traversal like ..\ to ensure the resolved file is inside the beatmap folder
                                     if (resolvedPath.StartsWith(fullBeatmapFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                                         && File.Exists(resolvedPath))
                                     {
@@ -76,7 +75,6 @@ namespace OsuBackgroundReplacerMain.Logic
                                 }
                                 catch
                                 {
-                                    // Skip invalid path formats
                                 }
                             }
                         }
@@ -91,7 +89,6 @@ namespace OsuBackgroundReplacerMain.Logic
                     return replacedFiles;
                 }
 
-                // Execute backup if enabled
                 bool shouldBackup = enableBackup ?? SettingsService.Current.BackupOriginalBackgrounds;
                 if (shouldBackup && allImageFiles.Count > 0)
                 {
@@ -122,10 +119,26 @@ namespace OsuBackgroundReplacerMain.Logic
                         cancellationToken);
                 }
 
-                int total = allImageFiles.Count;
+                var filesToReplace = allImageFiles;
+                if (LastBackupResult != null)
+                {
+                    var backupResult = LastBackupResult;
+                    filesToReplace = allImageFiles.Where(backupResult.IsBackedUp).ToList();
+                    foreach (var skipped in allImageFiles.Except(filesToReplace))
+                    {
+                        string reason = backupResult.Errors.FirstOrDefault(e =>
+                            string.Equals(Path.GetFullPath(e.FilePath), skipped, StringComparison.OrdinalIgnoreCase))?.ErrorMessage
+                            ?? "Backup failed.";
+                        string message = $"Skipped, not replaced because backup failed: {reason}";
+                        LogService.AddEntry(skipped, false, message);
+                        LastReplacementErrors.Add(new FileErrorInfo(skipped, message));
+                    }
+                }
+
+                int total = filesToReplace.Count;
                 int current = 0;
 
-                foreach (var imageFile in allImageFiles)
+                foreach (var imageFile in filesToReplace)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
