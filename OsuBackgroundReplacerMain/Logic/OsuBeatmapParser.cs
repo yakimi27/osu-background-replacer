@@ -9,10 +9,6 @@ namespace OsuBackgroundReplacerMain.Logic
     {
         private static readonly Encoding Utf8WithoutBom = new UTF8Encoding(false);
 
-        /// <summary>
-        /// Reads all *.osu files in the specified beatmap folder and extracts distinct background image filenames.
-        /// Returns an empty set if no background entry is found, or if no .osu files exist.
-        /// </summary>
         public static HashSet<string> GetBackgroundFiles(string beatmapFolder)
         {
             var backgroundFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -44,10 +40,6 @@ namespace OsuBackgroundReplacerMain.Logic
             return backgroundFiles;
         }
 
-        /// <summary>
-        /// Extracts the background filename from a single .osu file.
-        /// Returns null if missing [Events] section or no valid background line.
-        /// </summary>
         public static string? ExtractBackgroundFilename(string osuFilePath)
         {
             if (string.IsNullOrEmpty(osuFilePath) || !File.Exists(osuFilePath))
@@ -67,7 +59,6 @@ namespace OsuBackgroundReplacerMain.Logic
                 {
                     string trimmed = line.Trim();
 
-                    // Check for section headers [SectionName]
                     if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
                     {
                         if (trimmed.Equals("[Events]", StringComparison.OrdinalIgnoreCase))
@@ -76,7 +67,6 @@ namespace OsuBackgroundReplacerMain.Logic
                         }
                         else if (inEventsSection)
                         {
-                            // Left [Events] section into another section
                             break;
                         }
                         continue;
@@ -87,7 +77,6 @@ namespace OsuBackgroundReplacerMain.Logic
                         continue;
                     }
 
-                    // Ignore comments or empty lines
                     if (trimmed.StartsWith("//") || trimmed.Length == 0)
                     {
                         continue;
@@ -108,11 +97,6 @@ namespace OsuBackgroundReplacerMain.Logic
             return null;
         }
 
-        /// <summary>
-        /// Parses a single event line to check if it's a type 0 (Background) event and returns the filename.
-        /// Format: 0,0,"bg.jpg",0,0 (or unquoted filename, optional whitespace).
-        /// Ignores video events (type 1 / Video) and storyboard sprite lines (Sprite/Animation).
-        /// </summary>
         public static string? ParseBackgroundEventLine(string line)
         {
             if (string.IsNullOrWhiteSpace(line))
@@ -127,7 +111,6 @@ namespace OsuBackgroundReplacerMain.Logic
             }
 
             string eventType = parts[0].Trim();
-            // Only event type 0 background line counts (ignoring 1 / Video, Sprite, Animation, etc.)
             if (eventType != "0")
             {
                 return null;

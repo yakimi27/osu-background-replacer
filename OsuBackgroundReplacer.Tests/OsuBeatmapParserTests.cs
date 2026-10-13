@@ -27,7 +27,6 @@ public class OsuBeatmapParserTests : IDisposable
         }
         catch
         {
-            // Ignore cleanup failures in test teardown
         }
     }
 
@@ -51,13 +50,12 @@ public class OsuBeatmapParserTests : IDisposable
         Assert.Null(OsuBeatmapParser.ParseBackgroundEventLine(""));
         Assert.Null(OsuBeatmapParser.ParseBackgroundEventLine("   "));
         Assert.Null(OsuBeatmapParser.ParseBackgroundEventLine("// Background and Video events"));
-        Assert.Null(OsuBeatmapParser.ParseBackgroundEventLine("2, 1000, 2000")); // Break line
+        Assert.Null(OsuBeatmapParser.ParseBackgroundEventLine("2, 1000, 2000"));
     }
 
     [Fact]
     public void ParseBackgroundEventLine_VideoAndSpriteLines_ReturnsNull()
     {
-        // Video event: type 1 or Video
         string videoLine1 = "1,0,\"video.avi\",0,0";
         string videoLine2 = "Video,0,\"video.mp4\"";
         string spriteLine = "Sprite,Pass,Centre,\"sb\\sprite.png\",320,240";
@@ -79,7 +77,6 @@ public class OsuBeatmapParserTests : IDisposable
 AudioFilename: audio.mp3
 
 [Events]
-//Background and Video events
 0,0,""epic_bg.jpg"",0,0
 1,0,""intro.avi"",0,0
 
@@ -87,7 +84,6 @@ AudioFilename: audio.mp3
 100,500,4,2,0,100,1,0
 ";
         string filePath = Path.Combine(_tempDirectory, "beatmap.osu");
-        // Write with UTF-8 BOM to ensure BOM skipping works
         File.WriteAllText(filePath, osuContent, new UTF8Encoding(true));
 
         string? bg = OsuBeatmapParser.ExtractBackgroundFilename(filePath);
@@ -122,7 +118,6 @@ HPDrainRate:5
         string? bg = OsuBeatmapParser.ExtractBackgroundFilename(filePath);
         Assert.Null(bg);
 
-        // Also test non-existent file
         Assert.Null(OsuBeatmapParser.ExtractBackgroundFilename(Path.Combine(_tempDirectory, "non_existent.osu")));
     }
 
@@ -132,22 +127,18 @@ HPDrainRate:5
         string beatmapFolder = Path.Combine(_tempDirectory, "MapSet1");
         Directory.CreateDirectory(beatmapFolder);
 
-        // Diff 1: uses bg1.jpg
         string diff1 =
 @"[Events]
 0,0,""bg1.jpg"",0,0
 ";
-        // Diff 2: also uses bg1.jpg (case insensitive variation)
         string diff2 =
 @"[Events]
 0,0,""BG1.JPG"",0,0
 ";
-        // Diff 3: uses bg2.png
         string diff3 =
 @"[Events]
 0,0,""bg2.png"",0,0
 ";
-        // Diff 4: has no bg line (only video)
         string diff4 =
 @"[Events]
 1,0,""video.avi"",0,0
@@ -173,7 +164,6 @@ HPDrainRate:5
 
         string diffWithoutBg =
 @"[Events]
-// No bg here
 1,0,""video.mp4"",0,0
 ";
         File.WriteAllText(Path.Combine(beatmapFolder, "nobg.osu"), diffWithoutBg, Encoding.UTF8);
