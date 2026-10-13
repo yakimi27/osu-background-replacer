@@ -10,7 +10,6 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="36,24,36,36">
         <StackPanel MaxWidth="900" HorizontalAlignment="Stretch" Spacing="24">
 
-            <!-- Page Header -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Settings" Style="{ThemeResource TitleLargeTextBlockStyle}" />
                 <TextBlock Text="Customize application preferences and appearance."
@@ -23,7 +22,6 @@
                      IsClosable="True"
                      Margin="0,0,0,4" />
 
-            <!-- SECTION 1: WORKFLOW PREFERENCES -->
             <StackPanel Spacing="10">
                 <TextBlock Text="Workflow Preferences" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
@@ -72,7 +70,6 @@
                 </controls:SettingsCard>
             </StackPanel>
 
-            <!-- SECTION 2: APPEARANCE -->
             <StackPanel Spacing="10">
                 <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
@@ -90,7 +87,6 @@
                 </controls:SettingsCard>
             </StackPanel>
 
-            <!-- SECTION 3: OSU INTEGRATION -->
             <StackPanel Spacing="10">
                 <TextBlock Text="osu! Detection" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
@@ -107,7 +103,6 @@
                 </controls:SettingsCard>
             </StackPanel>
 
-            <!-- SECTION 4: ABOUT -->
             <StackPanel Spacing="10">
                 <TextBlock Text="About" Style="{ThemeResource SubtitleTextBlockStyle}" />
 

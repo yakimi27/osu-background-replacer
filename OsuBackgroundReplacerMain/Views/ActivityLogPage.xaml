@@ -14,7 +14,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -28,7 +27,6 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
-            <!-- Actions Toolbar -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <AutoSuggestBox x:Name="SearchBox"
                                 QueryIcon="Find"
@@ -52,7 +50,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- Stats Bar -->
         <Border Grid.Row="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -91,7 +88,6 @@
             </Grid>
         </Border>
 
-        <!-- Empty State Container -->
         <StackPanel x:Name="EmptyStateContainer"
                     Grid.Row="2"
                     HorizontalAlignment="Center"
@@ -111,7 +107,6 @@
                        HorizontalAlignment="Center" />
         </StackPanel>
 
-        <!-- Items List -->
         <ListView x:Name="LogListView"
                   Grid.Row="2"
                   SelectionMode="None"
@@ -133,14 +128,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Status Icon -->
                             <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6"
                                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                                     VerticalAlignment="Center">
                                 <FontIcon Glyph="&#xEB9F;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
                             </Border>
 
-                            <!-- Folder & File Details -->
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                 <TextBlock Text="{x:Bind FolderName}"
                                            Style="{ThemeResource BodyStrongTextBlockStyle}"
@@ -151,7 +144,6 @@
                                            TextTrimming="CharacterEllipsis" />
                             </StackPanel>
 
-                            <!-- Timestamp -->
                             <TextBlock Grid.Column="2"
                                        Text="{x:Bind FormattedTime}"
                                        Style="{ThemeResource CaptionTextBlockStyle}"
@@ -159,7 +151,6 @@
                                        VerticalAlignment="Center"
                                        Margin="8,0" />
 
-                            <!-- Open Folder Button -->
                             <Button Grid.Column="3"
                                     Tag="{x:Bind FilePath}"
                                     Click="OpenItemFolder_Click"

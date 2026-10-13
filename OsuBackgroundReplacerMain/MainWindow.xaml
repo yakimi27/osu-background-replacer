@@ -18,7 +18,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Custom Draggable App TitleBar -->
         <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Background="Transparent">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="10">
                 <Image Source="Assets/Square44x44Logo.targetsize-24_altform-unplated.png" Width="20" Height="20" />
@@ -29,7 +28,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- Navigation View -->
         <NavigationView x:Name="NavView"
                         Grid.Row="1"
                         PaneDisplayMode="Left"
@@ -59,7 +57,6 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
-            <!-- Content Area with smooth transition -->
             <Frame x:Name="ContentFrame">
                 <Frame.ContentTransitions>
                     <TransitionCollection>

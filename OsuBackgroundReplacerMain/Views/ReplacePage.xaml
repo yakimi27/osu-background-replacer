@@ -10,7 +10,6 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="36,24,36,36">
         <StackPanel MaxWidth="900" HorizontalAlignment="Stretch" Spacing="24">
 
-            <!-- header -->
             <StackPanel Spacing="4">
                 <TextBlock Text="Replace Backgrounds" Style="{ThemeResource TitleLargeTextBlockStyle}" />
                 <TextBlock Text="Replace background art across all your osu! songs and beatmaps in one operation."
@@ -18,13 +17,11 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
 
-            <!-- infobar -->
             <InfoBar x:Name="StatusInfoBar"
                      IsOpen="False"
                      IsClosable="True"
                      Margin="0,0,0,4" />
 
-            <!-- SECTION 1: SONGS DIRECTORY -->
             <StackPanel Spacing="10">
                 <TextBlock Text="Target Directory" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
@@ -75,7 +72,6 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- drag & drop -->
                         <Border x:Name="FolderDropZone"
                                 Height="84"
                                 CornerRadius="6"
@@ -95,7 +91,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- beatmap count -->
                         <Grid x:Name="FolderStatusGrid" Visibility="Collapsed">
                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                 <FontIcon x:Name="FolderStatusIcon" Glyph="&#xE73E;" FontSize="14" Foreground="Green" />
@@ -108,7 +103,6 @@
                 </Border>
             </StackPanel>
 
-            <!-- SECTION 2: REPLACEMENT IMAGE -->
             <StackPanel Spacing="10">
                 <TextBlock Text="Replacement Image" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
@@ -150,7 +144,6 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- drag & drop -->
                         <Border x:Name="ImageDropZone"
                                 Height="84"
                                 CornerRadius="6"
@@ -170,7 +163,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- image preview -->
                         <Border x:Name="ImagePreviewContainer"
                                 Visibility="Collapsed"
                                 Background="{ThemeResource ControlFillColorDefaultBrush}"
@@ -203,14 +195,12 @@
                 </Border>
             </StackPanel>
 
-            <!-- SECTION 3: ACTION & PROGRESS -->
             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="18">
                 <StackPanel Spacing="16">
-                    <!-- Backup & Restore options row -->
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -274,7 +264,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- progress -->
                     <StackPanel x:Name="ProgressSection" Visibility="Collapsed" Spacing="8">
                         <ProgressBar x:Name="ReplacingProgressBar" Minimum="0" Maximum="100" Value="0" Height="6" CornerRadius="3" />
                         <Grid>
