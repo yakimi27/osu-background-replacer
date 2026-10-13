@@ -285,18 +285,17 @@ namespace OsuBackgroundReplacerMain.Views
         private async void Undo_Click(object sender, RoutedEventArgs e)
         {
             var backupService = new BackupService();
-            string? latestSession = backupService.GetLatestSessionDirectory();
+            var latestSession = backupService.GetLatestSessionInfo();
 
-            if (string.IsNullOrEmpty(latestSession))
+            if (latestSession == null)
             {
                 await MainWindow.ShowDialogAsync("No backup sessions were found to restore.", "Undo Last Replacement");
                 ShowInfo("No backup sessions available.", InfoBarSeverity.Informational);
                 return;
             }
 
-            string sessionName = Path.GetFileName(latestSession);
             var confirm = await MainWindow.ShowDialogAsync(
-                $"Restore original backgrounds from the most recent backup session ({sessionName})?\n\nThis will verify file hashes, skip missing files gracefully, and restore the original images.",
+                $"Restore original backgrounds from the backup session created {latestSession.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} ({latestSession.FileCount:N0} file(s))?\n\nThis may not be your most recent replacement: runs with backup disabled do not create a session.\n\nThis will verify file hashes, skip missing files gracefully, and restore the original images.",
                 "Confirm Undo", "Yes, Restore", "Cancel");
 
             if (confirm != ContentDialogResult.Primary)
@@ -321,7 +320,7 @@ namespace OsuBackgroundReplacerMain.Views
 
             try
             {
-                var result = await backupService.RestoreLastBackupAsync(progress, _cts.Token);
+                var result = await backupService.RestoreLastBackupAsync(progress, _cts.Token, FolderOperations.getPath());
                 SetProcessing(false);
 
                 foreach (var item in result.Items)
