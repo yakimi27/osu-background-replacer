@@ -11,7 +11,7 @@ namespace OsuBackgroundReplacerMain.Services
         public bool SaveLastImagePath { get; set; } = true;
         public string LastFolderPath { get; set; } = string.Empty;
         public string LastImagePath { get; set; } = string.Empty;
-        public string AppTheme { get; set; } = "Default"; // "Default", "Light", "Dark"
+        public string AppTheme { get; set; } = "Default";
         public bool BackupOriginalBackgrounds { get; set; } = false;
     }
 
@@ -76,7 +76,6 @@ namespace OsuBackgroundReplacerMain.Services
             }
             catch
             {
-                // silently handle any write issues
             }
         }
 
@@ -84,12 +83,10 @@ namespace OsuBackgroundReplacerMain.Services
         {
             try
             {
-                // 1. default osu! install in LocalAppData
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string path1 = Path.Combine(localAppData, "osu!", "Songs");
                 if (Directory.Exists(path1)) return path1;
 
-                // 2. program files
                 string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 string path2 = Path.Combine(progFiles, "osu!", "Songs");
                 if (Directory.Exists(path2)) return path2;
@@ -98,7 +95,6 @@ namespace OsuBackgroundReplacerMain.Services
                 string path3 = Path.Combine(progFilesX86, "osu!", "Songs");
                 if (Directory.Exists(path3)) return path3;
 
-                // 3. root drives
                 string[] commonRoots = { @"C:\osu!\Songs", @"D:\osu!\Songs", @"E:\osu!\Songs", @"F:\osu!\Songs" };
                 foreach (var root in commonRoots)
                 {

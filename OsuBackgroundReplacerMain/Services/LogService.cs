@@ -20,7 +20,7 @@ namespace OsuBackgroundReplacerMain.Services
         public static void AddEntry(string filePath, bool success = true, string? error = null)
         {
             var entry = LogEntry.CreateFromFilePath(filePath, success, error);
-            Entries.Insert(0, entry); // newest first
+            Entries.Insert(0, entry);
             LastRunTime = DateTime.Now;
             EntriesChanged?.Invoke();
         }
