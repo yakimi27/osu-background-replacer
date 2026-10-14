@@ -168,7 +168,6 @@ namespace OsuBackgroundReplacerMain.Services
         {
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "yakimi27",
                 DefaultAppName,
                 "Backups");
         }
