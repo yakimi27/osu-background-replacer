@@ -1,12 +1,14 @@
+#if !TESTS
 using Microsoft.UI.Xaml;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+#endif
 using OsuBackgroundReplacerMain.Services;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage;
-using Windows.Storage.Pickers;
 
 namespace OsuBackgroundReplacerMain.Logic
 {
@@ -20,18 +22,23 @@ namespace OsuBackgroundReplacerMain.Logic
         {
             if (string.IsNullOrEmpty(_selectedImagePath) && SettingsService.Current.SaveLastImagePath)
             {
-                if (File.Exists(SettingsService.Current.LastImagePath))
+                if (!string.IsNullOrEmpty(SettingsService.Current.LastImagePath) && File.Exists(SettingsService.Current.LastImagePath))
                 {
                     _selectedImagePath = SettingsService.Current.LastImagePath;
                 }
             }
-            return _selectedImagePath;
+            return string.IsNullOrEmpty(_selectedImagePath) ? null : _selectedImagePath;
         }
 
         public static void setPath(string? path)
         {
-            _selectedImagePath = path;
-            if (SettingsService.Current.SaveLastImagePath && !string.IsNullOrEmpty(path))
+            _selectedImagePath = string.IsNullOrEmpty(path) ? null : path;
+            if (string.IsNullOrEmpty(path))
+            {
+                SettingsService.Current.LastImagePath = string.Empty;
+                SettingsService.Save();
+            }
+            else if (SettingsService.Current.SaveLastImagePath)
             {
                 SettingsService.Current.LastImagePath = path;
                 SettingsService.Save();
@@ -65,6 +72,7 @@ namespace OsuBackgroundReplacerMain.Logic
             return string.Empty;
         }
 
+#if !TESTS
         public static async Task ChooseImageManually(Window window)
         {
             try
@@ -122,5 +130,6 @@ namespace OsuBackgroundReplacerMain.Logic
                 await MainWindow.ShowDialogAsync(exception.Message, "Error selecting image");
             }
         }
+#endif
     }
 }
