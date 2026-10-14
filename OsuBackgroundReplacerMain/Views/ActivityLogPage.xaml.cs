@@ -28,6 +28,12 @@ namespace OsuBackgroundReplacerMain.Views
 
         private void RefreshList()
         {
+            if (DispatcherQueue != null && !DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(RefreshList);
+                return;
+            }
+
             string filter = SearchBox.Text?.Trim() ?? string.Empty;
             IEnumerable<LogEntry> items = LogService.Entries;
 
