@@ -48,6 +48,20 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    Glyph="&#xE74C;"
+                    Header="Keep backup sessions"
+                    Description="Maximum completed backup sessions to keep (default 5, 0 for unlimited)">
+                    <NumberBox x:Name="KeepSessionsNumberBox"
+                               Value="5"
+                               Minimum="0"
+                               SpinButtonPlacementMode="Inline"
+                               SmallChange="1"
+                               LargeChange="5"
+                               ValueChanged="KeepSessionsNumberBox_ValueChanged"
+                               MinWidth="120" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     Glyph="&#xED25;"
                     Header="Remember last Songs folder"
                     Description="Automatically save and restore your chosen osu! Songs directory between sessions">

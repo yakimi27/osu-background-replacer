@@ -13,6 +13,7 @@ namespace OsuBackgroundReplacerMain.Services
         public string LastImagePath { get; set; } = string.Empty;
         public string AppTheme { get; set; } = "Default";
         public bool BackupOriginalBackgrounds { get; set; } = false;
+        public int KeepLastNBackupSessions { get; set; } = 5;
     }
 
     public static class SettingsService

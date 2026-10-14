@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using OsuBackgroundReplacerMain.Logic;
@@ -21,6 +22,7 @@ namespace OsuBackgroundReplacerMain.Views
 
             ConfirmToggle.IsOn = SettingsService.Current.ConfirmBeforeReplace;
             BackupToggle.IsOn = SettingsService.Current.BackupOriginalBackgrounds;
+            KeepSessionsNumberBox.Value = SettingsService.Current.KeepLastNBackupSessions;
             SaveFolderToggle.IsOn = SettingsService.Current.SaveLastFolderPath;
             SaveImageToggle.IsOn = SettingsService.Current.SaveLastImagePath;
 
@@ -47,6 +49,14 @@ namespace OsuBackgroundReplacerMain.Views
         {
             if (_isInitializing) return;
             SettingsService.Current.BackupOriginalBackgrounds = BackupToggle.IsOn;
+            SettingsService.Save();
+        }
+
+        private void KeepSessionsNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        {
+            if (_isInitializing) return;
+            int val = double.IsNaN(sender.Value) ? 5 : (int)Math.Max(0, sender.Value);
+            SettingsService.Current.KeepLastNBackupSessions = val;
             SettingsService.Save();
         }
 

@@ -149,6 +149,7 @@ namespace OsuBackgroundReplacerMain.Services
         string? GetLatestSessionDirectory();
         BackupSessionInfo? GetLatestSessionInfo();
         List<string> GetBackupSessions();
+        List<string> CleanupOldSessions(int keepLastN);
     }
 
     public class BackupService : IBackupService
@@ -671,6 +672,172 @@ namespace OsuBackgroundReplacerMain.Services
         public List<string> GetBackupSessions()
         {
             return GetValidSessions().Select(s => s.Directory).ToList();
+        }
+
+        public List<string> CleanupOldSessions(int keepLastN)
+        {
+            var deletedSessions = new List<string>();
+            if (keepLastN <= 0)
+            {
+                return deletedSessions;
+            }
+
+            var validSessions = GetValidSessions(); // Newest first
+            if (validSessions.Count <= keepLastN)
+            {
+                return deletedSessions;
+            }
+
+            var currentSessions = validSessions.ToList();
+            var candidates = currentSessions.Skip(keepLastN).OrderBy(s => s.Timestamp).ToList();
+
+            foreach (var candidate in candidates)
+            {
+                var otherSessions = currentSessions.Where(s => !string.Equals(s.Directory, candidate.Directory, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (ContainsOnlyCopyOfAnyOriginal(candidate, otherSessions))
+                {
+                    // Never delete the session that contains the only copy of an original file
+                    continue;
+                }
+
+                try
+                {
+                    if (Directory.Exists(candidate.Directory))
+                    {
+                        Directory.Delete(candidate.Directory, true);
+                    }
+                    deletedSessions.Add(candidate.Directory);
+                    currentSessions.Remove(candidate);
+                }
+                catch
+                {
+                    // Ignore deletion errors (e.g. file lock or permissions)
+                }
+            }
+
+            return deletedSessions;
+        }
+
+        private static bool ContainsOnlyCopyOfAnyOriginal(BackupSessionInfo candidate, List<BackupSessionInfo> otherSessions)
+        {
+            if (!Directory.Exists(candidate.Directory))
+            {
+                return false;
+            }
+
+            string fullCandidateDir = Path.GetFullPath(candidate.Directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            var physicalFiles = Directory.GetFiles(candidate.Directory, "*", SearchOption.AllDirectories)
+                .Where(f => !string.Equals(Path.GetFileName(f), "manifest.json", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (physicalFiles.Count == 0)
+            {
+                return false;
+            }
+
+            var otherHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var other in otherSessions)
+            {
+                if (!Directory.Exists(other.Directory)) continue;
+
+                string fullOtherDir = Path.GetFullPath(other.Directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+                string manifestPath = Path.Combine(other.Directory, "manifest.json");
+                if (File.Exists(manifestPath))
+                {
+                    try
+                    {
+                        var manifest = ParseManifestJson(File.ReadAllText(manifestPath), other.Directory);
+                        if (manifest?.Entries != null)
+                        {
+                            foreach (var entry in manifest.Entries)
+                            {
+                                string backupFile = ResolveBackupFile(entry, other.Directory);
+                                if (File.Exists(backupFile) && Path.GetFullPath(backupFile).StartsWith(fullOtherDir, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (!string.IsNullOrEmpty(entry.Sha256))
+                                    {
+                                        otherHashes.Add(entry.Sha256);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                foreach (var otherFile in Directory.GetFiles(other.Directory, "*", SearchOption.AllDirectories))
+                {
+                    if (string.Equals(Path.GetFileName(otherFile), "manifest.json", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        string hash = ComputeSha256(otherFile);
+                        otherHashes.Add(hash);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            var candidateManifestHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string candidateManifestPath = Path.Combine(candidate.Directory, "manifest.json");
+            if (File.Exists(candidateManifestPath))
+            {
+                try
+                {
+                    var manifest = ParseManifestJson(File.ReadAllText(candidateManifestPath), candidate.Directory);
+                    if (manifest?.Entries != null)
+                    {
+                        foreach (var entry in manifest.Entries)
+                        {
+                            string backupFile = ResolveBackupFile(entry, candidate.Directory);
+                            if (Path.GetFullPath(backupFile).StartsWith(fullCandidateDir, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!string.IsNullOrEmpty(entry.Sha256))
+                                {
+                                    candidateManifestHashes[Path.GetFullPath(backupFile)] = entry.Sha256;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            foreach (var file in physicalFiles)
+            {
+                string fullPath = Path.GetFullPath(file);
+                if (!candidateManifestHashes.TryGetValue(fullPath, out string? hash) || string.IsNullOrEmpty(hash))
+                {
+                    try
+                    {
+                        hash = ComputeSha256(file);
+                    }
+                    catch
+                    {
+                        return true;
+                    }
+                }
+
+                if (!otherHashes.Contains(hash))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private List<BackupSessionInfo> GetValidSessions()
