@@ -14,6 +14,7 @@ namespace OsuBackgroundReplacerMain
         public new static MainWindow Current { get; private set; } = null!;
 
         private bool _isLoaded;
+        private static readonly DialogQueue _dialogQueue = new();
 
         public MainWindow()
         {
@@ -125,20 +126,36 @@ namespace OsuBackgroundReplacerMain
 
         public static async Task<ContentDialogResult> ShowDialogAsync(string content, string title, string primaryBtnText = "OK", string? closeBtnText = null)
         {
-            if (Current.DispatcherQueue.HasThreadAccess)
+            return await _dialogQueue.EnqueueAsync(async () =>
             {
-                return await ShowDialogInternal(content, title, primaryBtnText, closeBtnText);
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<ContentDialogResult>();
-                Current.DispatcherQueue.TryEnqueue(async () =>
+                if (Current.DispatcherQueue.HasThreadAccess)
                 {
-                    var result = await ShowDialogInternal(content, title, primaryBtnText, closeBtnText);
-                    tcs.SetResult(result);
-                });
-                return await tcs.Task;
-            }
+                    return await ShowDialogInternal(content, title, primaryBtnText, closeBtnText);
+                }
+                else
+                {
+                    var tcs = new TaskCompletionSource<ContentDialogResult>();
+                    bool enqueued = Current.DispatcherQueue.TryEnqueue(async () =>
+                    {
+                        try
+                        {
+                            var result = await ShowDialogInternal(content, title, primaryBtnText, closeBtnText);
+                            tcs.SetResult(result);
+                        }
+                        catch (Exception ex)
+                        {
+                            tcs.SetException(ex);
+                        }
+                    });
+
+                    if (!enqueued)
+                    {
+                        tcs.SetException(new InvalidOperationException("Failed to enqueue dialog operation to the UI thread dispatcher queue."));
+                    }
+
+                    return await tcs.Task;
+                }
+            });
         }
 
         private static async Task<ContentDialogResult> ShowDialogInternal(string content, string title, string primaryButtonText, string? closeButtonText)
@@ -152,7 +169,9 @@ namespace OsuBackgroundReplacerMain
                 PrimaryButtonText = primaryButtonText,
                 CloseButtonText = closeButtonText
             };
-            return await dialog.ShowAsync();
+            var result = await dialog.ShowAsync();
+            await Task.Yield();
+            return result;
         }
     }
 }
