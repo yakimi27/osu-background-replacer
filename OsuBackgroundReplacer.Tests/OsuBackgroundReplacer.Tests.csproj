@@ -26,6 +26,7 @@
     <Compile Include="..\OsuBackgroundReplacerMain\Services\SettingsService.cs" Link="Services\SettingsService.cs" />
     <Compile Include="..\OsuBackgroundReplacerMain\Logic\FolderOperations.cs" Link="Logic\FolderOperations.cs" />
     <Compile Include="..\OsuBackgroundReplacerMain\Logic\ImageOperations.cs" Link="Logic\ImageOperations.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Services\DialogQueue.cs" Link="Services\DialogQueue.cs" />
   </ItemGroup>
 
 </Project>
