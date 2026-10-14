@@ -16,6 +16,7 @@ namespace OsuBackgroundReplacerMain.Views
 {
     public sealed partial class ReplacePage : Page
     {
+        private bool _isLoaded;
         private CancellationTokenSource? _cts;
         private bool _isProcessing = false;
 
@@ -23,20 +24,46 @@ namespace OsuBackgroundReplacerMain.Views
         {
             this.InitializeComponent();
             this.Loaded += ReplacePage_Loaded;
-            FolderOperations.PathChanged += UpdateFolderUI;
-            ImageOperations.PathChanged += UpdateImageUI;
-            SettingsService.SettingsChanged += UpdateSettingsUI;
+            this.Unloaded += ReplacePage_Unloaded;
         }
 
         private void ReplacePage_Loaded(object sender, RoutedEventArgs e)
         {
+            _isLoaded = true;
+
+            FolderOperations.PathChanged -= UpdateFolderUI;
+            FolderOperations.PathChanged += UpdateFolderUI;
+
+            ImageOperations.PathChanged -= UpdateImageUI;
+            ImageOperations.PathChanged += UpdateImageUI;
+
+            SettingsService.SettingsChanged -= UpdateSettingsUI;
+            SettingsService.SettingsChanged += UpdateSettingsUI;
+
             UpdateFolderUI();
             UpdateImageUI();
             UpdateSettingsUI();
         }
 
+        private void ReplacePage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            _isLoaded = false;
+
+            FolderOperations.PathChanged -= UpdateFolderUI;
+            ImageOperations.PathChanged -= UpdateImageUI;
+            SettingsService.SettingsChanged -= UpdateSettingsUI;
+        }
+
         private void UpdateSettingsUI()
         {
+            if (!_isLoaded) return;
+            if (!DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(UpdateSettingsUI);
+                return;
+            }
+            if (!_isLoaded) return;
+
             BackupToggle.IsOn = SettingsService.Current.BackupOriginalBackgrounds;
         }
 
@@ -51,6 +78,14 @@ namespace OsuBackgroundReplacerMain.Views
 
         private void UpdateFolderUI()
         {
+            if (!_isLoaded) return;
+            if (!DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(UpdateFolderUI);
+                return;
+            }
+            if (!_isLoaded) return;
+
             string? folder = FolderOperations.getPath();
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
             {
@@ -84,6 +119,14 @@ namespace OsuBackgroundReplacerMain.Views
 
         private void UpdateImageUI()
         {
+            if (!_isLoaded) return;
+            if (!DispatcherQueue.HasThreadAccess)
+            {
+                DispatcherQueue.TryEnqueue(UpdateImageUI);
+                return;
+            }
+            if (!_isLoaded) return;
+
             string? imagePath = ImageOperations.getPath();
             if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
             {
@@ -382,6 +425,8 @@ namespace OsuBackgroundReplacerMain.Views
         private void SetProcessing(bool processing)
         {
             _isProcessing = processing;
+            if (!_isLoaded) return;
+
             ReplaceButton.IsEnabled = !processing;
             UndoButton.IsEnabled = !processing;
             BackupToggle.IsEnabled = !processing;
@@ -406,6 +451,8 @@ namespace OsuBackgroundReplacerMain.Views
 
         private void ShowInfo(string message, InfoBarSeverity severity)
         {
+            if (!_isLoaded) return;
+
             StatusInfoBar.Message = message;
             StatusInfoBar.Severity = severity;
             StatusInfoBar.IsOpen = true;

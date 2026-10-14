@@ -13,6 +13,8 @@ namespace OsuBackgroundReplacerMain
     {
         public new static MainWindow Current { get; private set; } = null!;
 
+        private bool _isLoaded;
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -29,7 +31,30 @@ namespace OsuBackgroundReplacerMain
             this.AppWindow.Resize(new Windows.Graphics.SizeInt32(960, 720));
 
             ApplySavedTheme();
+
+            RootGrid.Loaded += MainWindow_Loaded;
+            RootGrid.Unloaded += MainWindow_Unloaded;
+            this.Closed += MainWindow_Closed;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            _isLoaded = true;
+            LogService.EntriesChanged -= UpdateLogBadge;
             LogService.EntriesChanged += UpdateLogBadge;
+            UpdateLogBadge();
+        }
+
+        private void MainWindow_Unloaded(object sender, RoutedEventArgs e)
+        {
+            _isLoaded = false;
+            LogService.EntriesChanged -= UpdateLogBadge;
+        }
+
+        private void MainWindow_Closed(object sender, WindowEventArgs args)
+        {
+            _isLoaded = false;
+            LogService.EntriesChanged -= UpdateLogBadge;
         }
 
         private void NavView_Loaded(object sender, RoutedEventArgs e)
@@ -62,8 +87,12 @@ namespace OsuBackgroundReplacerMain
 
         private void UpdateLogBadge()
         {
-            DispatcherQueue.TryEnqueue(() =>
+            if (!_isLoaded) return;
+
+            DispatcherQueue?.TryEnqueue(() =>
             {
+                if (!_isLoaded) return;
+
                 int count = LogService.TotalReplacedCount;
                 if (count > 0)
                 {
