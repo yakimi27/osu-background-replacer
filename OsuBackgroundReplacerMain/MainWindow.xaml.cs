@@ -29,7 +29,7 @@ namespace OsuBackgroundReplacerMain
             presenter.PreferredMinimumHeight = 600;
             this.AppWindow.SetPresenter(presenter);
 
-            this.AppWindow.Resize(new Windows.Graphics.SizeInt32(960, 720));
+            this.AppWindow.Resize(new Windows.Graphics.SizeInt32(1024, 720));
 
             ApplySavedTheme();
 
