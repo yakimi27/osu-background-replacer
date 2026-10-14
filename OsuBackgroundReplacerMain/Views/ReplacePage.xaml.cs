@@ -18,6 +18,7 @@ namespace OsuBackgroundReplacerMain.Views
     {
         private bool _isLoaded;
         private CancellationTokenSource? _cts;
+        private CancellationTokenSource? _folderScanCts;
         private bool _isProcessing = false;
 
         public ReplacePage()
@@ -48,6 +49,9 @@ namespace OsuBackgroundReplacerMain.Views
         private void ReplacePage_Unloaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = false;
+            _folderScanCts?.Cancel();
+            _folderScanCts?.Dispose();
+            _folderScanCts = null;
 
             FolderOperations.PathChanged -= UpdateFolderUI;
             ImageOperations.PathChanged -= UpdateImageUI;
@@ -86,15 +90,19 @@ namespace OsuBackgroundReplacerMain.Views
             }
             if (!_isLoaded) return;
 
+            _folderScanCts?.Cancel();
+            _folderScanCts?.Dispose();
+            _folderScanCts = new CancellationTokenSource();
+            var scanToken = _folderScanCts.Token;
+
             string? folder = FolderOperations.getPath();
             if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
             {
                 FolderPathTextBlock.Text = folder;
                 OpenFolderButton.IsEnabled = true;
 
-                int count = FolderOperations.GetBeatmapCount();
                 FolderStatusGrid.Visibility = Visibility.Visible;
-                FolderStatusTextBlock.Text = $"{count:N0} beatmap folders found";
+                FolderStatusTextBlock.Text = "Scanning beatmap folders...";
 
                 bool isOsu = folder.Contains("osu!\\Songs", StringComparison.OrdinalIgnoreCase) ||
                              folder.Contains("osu!/Songs", StringComparison.OrdinalIgnoreCase);
@@ -102,12 +110,41 @@ namespace OsuBackgroundReplacerMain.Views
                 if (!isOsu)
                 {
                     FolderStatusIcon.Glyph = "\uE7BA"; // Warning
-                    FolderStatusTextBlock.Text += " (Note: Folder path doesn't contain 'osu!\\Songs')";
                 }
                 else
                 {
                     FolderStatusIcon.Glyph = "\uE73E"; // Checkmark
                 }
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        int count = await FolderOperations.GetBeatmapCountAsync(folder, scanToken);
+
+                        if (scanToken.IsCancellationRequested) return;
+
+                        DispatcherQueue?.TryEnqueue(() =>
+                        {
+                            if (!_isLoaded || scanToken.IsCancellationRequested) return;
+                            if (FolderOperations.getPath() != folder) return;
+
+                            string note = !isOsu ? " (Note: Folder path doesn't contain 'osu!\\Songs')" : "";
+                            FolderStatusTextBlock.Text = $"{count:N0} beatmap folders found{note}";
+                        });
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch
+                    {
+                        DispatcherQueue?.TryEnqueue(() =>
+                        {
+                            if (!_isLoaded || scanToken.IsCancellationRequested) return;
+                            FolderStatusTextBlock.Text = "Unable to read beatmap count";
+                        });
+                    }
+                }, scanToken);
             }
             else
             {

@@ -7,6 +7,8 @@ using Windows.Storage.Pickers;
 using OsuBackgroundReplacerMain.Services;
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OsuBackgroundReplacerMain.Logic
@@ -50,20 +52,78 @@ namespace OsuBackgroundReplacerMain.Logic
             PathChanged?.Invoke();
         }
 
-        public static int GetBeatmapCount()
+        public static int GetBeatmapCount(string? path = null)
         {
             try
             {
-                string? path = getPath();
-                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                path ??= getPath();
+                if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
                 {
-                    return Directory.GetDirectories(path).Length;
+                    return 0;
                 }
+
+                int count = 0;
+                foreach (var dir in Directory.EnumerateDirectories(path))
+                {
+                    try
+                    {
+                        if (Directory.EnumerateFiles(dir, "*.osu").Any())
+                        {
+                            count++;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore inaccessible or unreadable subdirectories
+                    }
+                }
+                return count;
             }
             catch
             {
+                return 0;
             }
-            return 0;
+        }
+
+        public static Task<int> GetBeatmapCountAsync(string? path = null, CancellationToken cancellationToken = default)
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    path ??= getPath();
+                    if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+                    {
+                        return 0;
+                    }
+
+                    int count = 0;
+                    foreach (var dir in Directory.EnumerateDirectories(path))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try
+                        {
+                            if (Directory.EnumerateFiles(dir, "*.osu").Any())
+                            {
+                                count++;
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore inaccessible or unreadable subdirectories
+                        }
+                    }
+                    return count;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return 0;
+                }
+            }, cancellationToken);
         }
 
 #if !TESTS
