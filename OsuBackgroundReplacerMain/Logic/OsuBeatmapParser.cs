@@ -23,8 +23,10 @@ namespace OsuBackgroundReplacerMain.Logic
             {
                 osuFiles = Directory.GetFiles(beatmapFolder, "*.osu");
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
+                System.Diagnostics.Debug.WriteLine($"Failed to get .osu files in '{beatmapFolder}': {ex.Message}");
+                OsuBackgroundReplacerMain.Services.LogService.AddEntry(beatmapFolder, false, $"Failed to search beatmap folder: {ex.Message}");
                 return backgroundFiles;
             }
 
@@ -89,8 +91,10 @@ namespace OsuBackgroundReplacerMain.Logic
                     }
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
+                System.Diagnostics.Debug.WriteLine($"Failed to parse .osu file '{osuFilePath}': {ex.Message}");
+                OsuBackgroundReplacerMain.Services.LogService.AddEntry(osuFilePath, false, $"Failed to read .osu file: {ex.Message}");
                 return null;
             }
 

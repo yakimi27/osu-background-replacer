@@ -79,8 +79,10 @@ namespace OsuBackgroundReplacerMain.Logic
                                         targets.Add(resolvedPath);
                                     }
                                 }
-                                catch
+                                catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or System.Security.SecurityException)
                                 {
+                                    System.Diagnostics.Debug.WriteLine($"Failed to resolve background path '{bgFileName}' in '{beatmapFolder}': {ex.Message}");
+                                    LogService.AddEntry(Path.Combine(beatmapFolder, bgFileName), false, $"Invalid background path: {ex.Message}");
                                 }
                             }
                         }

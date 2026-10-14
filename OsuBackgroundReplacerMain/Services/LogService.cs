@@ -22,6 +22,14 @@ namespace OsuBackgroundReplacerMain.Services
 
         public static ObservableCollection<LogEntry> Entries { get; } = new ObservableCollection<LogEntry>();
 
+        public static List<LogEntry> GetEntriesSnapshot()
+        {
+            lock (_lock)
+            {
+                return Entries.ToList();
+            }
+        }
+
         public static event Action? EntriesChanged;
 
         public static int MaxEntries { get; set; } = 5000;

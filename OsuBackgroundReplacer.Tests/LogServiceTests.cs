@@ -7,6 +7,7 @@ using Xunit;
 
 namespace OsuBackgroundReplacer.Tests;
 
+[Collection("LogServiceState")]
 public class LogServiceTests : IDisposable
 {
     private readonly int _originalMax;

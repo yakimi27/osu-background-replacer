@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OsuBackgroundReplacer.Tests;
 
+[Collection("LogServiceState")]
 public class OsuBeatmapParserTests : IDisposable
 {
     private readonly string _tempDirectory;
@@ -170,5 +171,24 @@ HPDrainRate:5
 
         var backgrounds = OsuBeatmapParser.GetBackgroundFiles(beatmapFolder);
         Assert.Empty(backgrounds);
+    }
+
+    [Fact]
+    public void ExtractBackgroundFilename_LockedFile_LogsErrorAndReturnsNull()
+    {
+        OsuBackgroundReplacerMain.Services.LogService.Clear();
+        string filePath = Path.Combine(_tempDirectory, "locked.osu");
+        File.WriteAllText(filePath, "[Events]\n0,0,\"bg.jpg\",0,0");
+
+        using (var lockStream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            string? result = OsuBeatmapParser.ExtractBackgroundFilename(filePath);
+            Assert.Null(result);
+        }
+
+        OsuBackgroundReplacerMain.Services.LogService.Flush();
+        Assert.True(OsuBackgroundReplacerMain.Services.LogService.TotalFailureCount > 0);
+        var entries = OsuBackgroundReplacerMain.Services.LogService.GetEntriesSnapshot();
+        Assert.Contains(entries, e => e.FilePath == filePath && !e.IsSuccess);
     }
 }
