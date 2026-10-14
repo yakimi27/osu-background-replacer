@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <DefineConstants>$(DefineConstants);TESTS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,9 @@
   <ItemGroup>
     <Compile Include="..\OsuBackgroundReplacerMain\Logic\OsuBeatmapParser.cs" Link="Logic\OsuBeatmapParser.cs" />
     <Compile Include="..\OsuBackgroundReplacerMain\Services\BackupService.cs" Link="Services\BackupService.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Services\SettingsService.cs" Link="Services\SettingsService.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Logic\FolderOperations.cs" Link="Logic\FolderOperations.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Logic\ImageOperations.cs" Link="Logic\ImageOperations.cs" />
   </ItemGroup>
 
 </Project>
