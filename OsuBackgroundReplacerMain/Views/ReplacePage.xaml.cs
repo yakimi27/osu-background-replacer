@@ -333,6 +333,10 @@ namespace OsuBackgroundReplacerMain.Views
                     {
                         LogService.AddEntry(item.OriginalPath, false, $"Restore failed: {item.ErrorMessage}");
                     }
+                    else if (item.Status == RestoreStatus.Skipped)
+                    {
+                        LogService.AddEntry(string.IsNullOrWhiteSpace(item.OriginalPath) ? "Unknown" : item.OriginalPath, false, $"Restore skipped: {item.ErrorMessage}");
+                    }
                 }
 
                 string summary = $"Undo Operation Summary:\n\n• Restored: {result.RestoredCount:N0}\n• Skipped: {result.SkippedCount:N0}\n• Failed: {result.FailedCount:N0}";
