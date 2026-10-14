@@ -336,18 +336,120 @@ namespace OsuBackgroundReplacerMain.Services
             }
         }
 
-        private static string? ResolveTargetPath(BackupManifestEntry entry, string? songsFolderPath)
+        private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            if (string.IsNullOrEmpty(songsFolderPath) || string.IsNullOrEmpty(entry.RelativePath))
+            ".jpg", ".jpeg", ".png", ".bmp", ".gif"
+        };
+
+        private static bool TryResolveTargetPath(
+            BackupManifestEntry entry,
+            string? songsFolderPath,
+            out string? targetPath,
+            out string? errorMessage)
+        {
+            targetPath = null;
+            errorMessage = null;
+
+            if (string.IsNullOrWhiteSpace(entry.OriginalPath) && string.IsNullOrWhiteSpace(entry.RelativePath))
             {
-                return entry.OriginalPath;
+                errorMessage = "Manifest entry has no path specified.";
+                return false;
             }
 
-            string fullRoot = Path.GetFullPath(songsFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            string target = Path.GetFullPath(Path.Combine(fullRoot, entry.RelativePath));
-            return target.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                ? target
-                : null;
+            bool hasRelative = !string.IsNullOrWhiteSpace(entry.RelativePath);
+
+            if (hasRelative)
+            {
+                string rel = entry.RelativePath!;
+
+                if (rel.Contains(".."))
+                {
+                    errorMessage = $"Relative path '{rel}' contains invalid traversal ('..').";
+                    return false;
+                }
+
+                if (Path.IsPathRooted(rel) || !string.IsNullOrEmpty(Path.GetPathRoot(rel)) || rel.StartsWith('/') || rel.StartsWith('\\'))
+                {
+                    errorMessage = $"Relative path '{rel}' is rooted or contains a drive specifier.";
+                    return false;
+                }
+
+                string candidate;
+                if (!string.IsNullOrEmpty(songsFolderPath))
+                {
+                    string fullSongs = Path.GetFullPath(songsFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    candidate = Path.GetFullPath(Path.Combine(fullSongs, rel));
+
+                    if (!string.Equals(Path.GetPathRoot(candidate), Path.GetPathRoot(fullSongs), StringComparison.OrdinalIgnoreCase) ||
+                        !candidate.StartsWith(fullSongs + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    {
+                        errorMessage = $"Target path '{candidate}' escapes the Songs folder.";
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(entry.OriginalPath) || !Path.IsPathFullyQualified(entry.OriginalPath))
+                    {
+                        errorMessage = "Manifest entry lacks valid Songs folder context and absolute OriginalPath.";
+                        return false;
+                    }
+                    candidate = Path.GetFullPath(entry.OriginalPath);
+                }
+
+                string ext = Path.GetExtension(candidate);
+                if (string.IsNullOrEmpty(ext) || !AllowedImageExtensions.Contains(ext))
+                {
+                    errorMessage = $"Target path '{candidate}' does not have a supported image extension.";
+                    return false;
+                }
+
+                targetPath = candidate;
+                return true;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(entry.OriginalPath))
+                {
+                    errorMessage = "Manifest entry has empty original path.";
+                    return false;
+                }
+
+                if (entry.OriginalPath.Contains(".."))
+                {
+                    errorMessage = $"Original path '{entry.OriginalPath}' contains invalid traversal ('..').";
+                    return false;
+                }
+
+                if (!Path.IsPathFullyQualified(entry.OriginalPath))
+                {
+                    errorMessage = $"Legacy original path '{entry.OriginalPath}' is not absolute.";
+                    return false;
+                }
+
+                string candidate = Path.GetFullPath(entry.OriginalPath);
+
+                string ext = Path.GetExtension(candidate);
+                if (string.IsNullOrEmpty(ext) || !AllowedImageExtensions.Contains(ext))
+                {
+                    errorMessage = $"Original path '{candidate}' does not have a supported image extension.";
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(songsFolderPath))
+                {
+                    string fullSongs = Path.GetFullPath(songsFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    if (!string.Equals(Path.GetPathRoot(candidate), Path.GetPathRoot(fullSongs), StringComparison.OrdinalIgnoreCase) ||
+                        !candidate.StartsWith(fullSongs + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    {
+                        errorMessage = $"Original path '{candidate}' is outside the selected Songs folder '{fullSongs}'.";
+                        return false;
+                    }
+                }
+
+                targetPath = candidate;
+                return true;
+            }
         }
 
         public async Task<RestoreSessionResult> RestoreLastBackupAsync(
@@ -452,13 +554,15 @@ namespace OsuBackgroundReplacerMain.Services
 
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(entry.OriginalPath))
+                    if (!TryResolveTargetPath(entry, songsFolderPath, out string? targetPath, out string? pathError))
                     {
                         result.SkippedCount++;
                         result.Items.Add(new RestoreItemResult
                         {
+                            OriginalPath = entry.OriginalPath,
+                            BackupPath = entry.BackupPath,
                             Status = RestoreStatus.Skipped,
-                            ErrorMessage = "Manifest entry has empty original path."
+                            ErrorMessage = pathError
                         });
                         continue;
                     }
@@ -509,27 +613,13 @@ namespace OsuBackgroundReplacerMain.Services
                         continue;
                     }
 
-                    string? targetPath = ResolveTargetPath(entry, songsFolderPath);
-                    if (targetPath == null)
-                    {
-                        result.FailedCount++;
-                        result.Items.Add(new RestoreItemResult
-                        {
-                            OriginalPath = entry.OriginalPath,
-                            BackupPath = backupFile,
-                            Status = RestoreStatus.Failed,
-                            ErrorMessage = $"Relative path '{entry.RelativePath}' escapes the Songs folder."
-                        });
-                        continue;
-                    }
-
                     string? targetDir = Path.GetDirectoryName(targetPath);
                     if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
                     {
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    await Task.Run(() => File.Copy(backupFile, targetPath, true), cancellationToken);
+                    await Task.Run(() => File.Copy(backupFile, targetPath!, true), cancellationToken);
 
                     result.RestoredCount++;
                     result.Items.Add(new RestoreItemResult
