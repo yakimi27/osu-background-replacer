@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OsuBackgroundReplacer.Tests;
 
+[Collection("OperationsStaticState")]
 public class OperationsPathTests : IDisposable
 {
     private readonly string _tempDirectory;
