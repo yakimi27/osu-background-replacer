@@ -17,11 +17,24 @@ namespace OsuBackgroundReplacerMain.Services
 
     public static class SettingsService
     {
-        private static readonly string SettingsDir = Path.Combine(
+        private static string _settingsDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "OsuBackgroundReplacer");
 
-        private static readonly string SettingsFilePath = Path.Combine(SettingsDir, "settings.json");
+        private static string _settingsFilePath = Path.Combine(_settingsDir, "settings.json");
+
+        public static string SettingsFilePath
+        {
+            get => _settingsFilePath;
+            set
+            {
+                _settingsFilePath = value;
+                _settingsDir = Path.GetDirectoryName(value) ?? _settingsDir;
+            }
+        }
+
+        public static bool IsFolderClearedInSession { get; set; } = false;
+        public static Func<string?>? CustomSongsDetector { get; set; }
 
         public static SettingsData Current { get; private set; } = new SettingsData();
 
@@ -51,7 +64,7 @@ namespace OsuBackgroundReplacerMain.Services
                 Current = new SettingsData();
             }
 
-            if (string.IsNullOrWhiteSpace(Current.LastFolderPath))
+            if (!IsFolderClearedInSession && string.IsNullOrWhiteSpace(Current.LastFolderPath))
             {
                 string? detected = TryDetectOsuSongsPath();
                 if (!string.IsNullOrWhiteSpace(detected))
@@ -65,9 +78,10 @@ namespace OsuBackgroundReplacerMain.Services
         {
             try
             {
-                if (!Directory.Exists(SettingsDir))
+                string dir = Path.GetDirectoryName(SettingsFilePath) ?? _settingsDir;
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 {
-                    Directory.CreateDirectory(SettingsDir);
+                    Directory.CreateDirectory(dir);
                 }
 
                 string json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
@@ -81,6 +95,11 @@ namespace OsuBackgroundReplacerMain.Services
 
         public static string? TryDetectOsuSongsPath()
         {
+            if (CustomSongsDetector != null)
+            {
+                return CustomSongsDetector();
+            }
+
             try
             {
                 string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
