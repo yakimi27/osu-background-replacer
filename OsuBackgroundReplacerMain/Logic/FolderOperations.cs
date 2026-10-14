@@ -1,11 +1,13 @@
+#if !TESTS
 using Microsoft.UI.Xaml;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+#endif
 using OsuBackgroundReplacerMain.Services;
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage;
-using Windows.Storage.Pickers;
 
 namespace OsuBackgroundReplacerMain.Logic
 {
@@ -19,18 +21,31 @@ namespace OsuBackgroundReplacerMain.Logic
         {
             if (string.IsNullOrEmpty(_selectedPath) && SettingsService.Current.SaveLastFolderPath)
             {
-                _selectedPath = SettingsService.Current.LastFolderPath;
+                if (!SettingsService.IsFolderClearedInSession && !string.IsNullOrEmpty(SettingsService.Current.LastFolderPath))
+                {
+                    _selectedPath = SettingsService.Current.LastFolderPath;
+                }
             }
-            return _selectedPath;
+            return string.IsNullOrEmpty(_selectedPath) ? null : _selectedPath;
         }
 
         public static void setPath(string? path)
         {
-            _selectedPath = path;
-            if (SettingsService.Current.SaveLastFolderPath && !string.IsNullOrEmpty(path))
+            _selectedPath = string.IsNullOrEmpty(path) ? null : path;
+            if (string.IsNullOrEmpty(path))
             {
-                SettingsService.Current.LastFolderPath = path;
+                SettingsService.IsFolderClearedInSession = true;
+                SettingsService.Current.LastFolderPath = string.Empty;
                 SettingsService.Save();
+            }
+            else
+            {
+                SettingsService.IsFolderClearedInSession = false;
+                if (SettingsService.Current.SaveLastFolderPath)
+                {
+                    SettingsService.Current.LastFolderPath = path;
+                    SettingsService.Save();
+                }
             }
             PathChanged?.Invoke();
         }
@@ -51,6 +66,7 @@ namespace OsuBackgroundReplacerMain.Logic
             return 0;
         }
 
+#if !TESTS
         public static async Task ChooseFolderManually(Window window)
         {
             try
@@ -101,5 +117,6 @@ namespace OsuBackgroundReplacerMain.Logic
                 await MainWindow.ShowDialogAsync(exception.Message, "Error selecting folder");
             }
         }
+#endif
     }
 }
