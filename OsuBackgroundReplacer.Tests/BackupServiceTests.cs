@@ -432,8 +432,102 @@ public class BackupServiceTests : IDisposable
 
         var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
         Assert.Equal(0, restore.RestoredCount);
-        Assert.Equal(1, restore.FailedCount);
+        Assert.Equal(1, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
+        Assert.Equal(RestoreStatus.Skipped, restore.Items[0].Status);
+        Assert.Contains("invalid traversal", restore.Items[0].ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(Path.Combine(_testRoot, "evil", "bg.jpg")));
+    }
+
+    [Fact]
+    public async Task Restore_TamperedManifestWithDotDotTraversal_SkipsAndDoesNotThrow()
+    {
+        string file = await MakeFile(Path.Combine(_songsDir, "8702 Map"), "bg.jpg", "ORIGINAL");
+        var backup = await _backupService.CreateBackupSessionAsync(new[] { file }, _songsDir);
+
+        string manifestPath = Path.Combine(backup.SessionDirectory, "manifest.json");
+        var manifest = JsonSerializer.Deserialize<BackupManifest>(await File.ReadAllTextAsync(manifestPath))!;
+        manifest.Entries[0].RelativePath = "8702 Map/../../evil.jpg";
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest));
+
+        var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
+        Assert.Equal(0, restore.RestoredCount);
+        Assert.Equal(1, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
+        Assert.Equal(RestoreStatus.Skipped, restore.Items[0].Status);
+        Assert.Contains("invalid traversal", restore.Items[0].ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(_testRoot, "evil.jpg")));
+    }
+
+    [Fact]
+    public async Task Restore_TamperedManifestWithAbsoluteOutsideSongs_SkipsAndDoesNotThrow()
+    {
+        string file = await MakeFile(Path.Combine(_songsDir, "8703 Map"), "bg.jpg", "ORIGINAL");
+        var backup = await _backupService.CreateBackupSessionAsync(new[] { file }, _songsDir);
+
+        string outsideFile = Path.Combine(_testRoot, "Outside", "pwned.jpg");
+        string manifestPath = Path.Combine(backup.SessionDirectory, "manifest.json");
+        var manifest = JsonSerializer.Deserialize<BackupManifest>(await File.ReadAllTextAsync(manifestPath))!;
+        manifest.Entries[0].RelativePath = null;
+        manifest.Entries[0].OriginalPath = outsideFile;
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest));
+
+        var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
+        Assert.Equal(0, restore.RestoredCount);
+        Assert.Equal(1, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
+        Assert.Equal(RestoreStatus.Skipped, restore.Items[0].Status);
+        Assert.Contains("outside the selected Songs folder", restore.Items[0].ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(outsideFile));
+    }
+
+    [Fact]
+    public async Task Restore_TamperedManifestWithNonImageExtension_SkipsAndDoesNotThrow()
+    {
+        string file = await MakeFile(Path.Combine(_songsDir, "8704 Map"), "bg.jpg", "ORIGINAL");
+        var backup = await _backupService.CreateBackupSessionAsync(new[] { file }, _songsDir);
+
+        string manifestPath = Path.Combine(backup.SessionDirectory, "manifest.json");
+        var manifest = JsonSerializer.Deserialize<BackupManifest>(await File.ReadAllTextAsync(manifestPath))!;
+        manifest.Entries[0].RelativePath = "8704 Map/malicious.exe";
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest));
+
+        var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
+        Assert.Equal(0, restore.RestoredCount);
+        Assert.Equal(1, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
+        Assert.Equal(RestoreStatus.Skipped, restore.Items[0].Status);
+        Assert.Contains("does not have a supported image extension", restore.Items[0].ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(_songsDir, "8704 Map", "malicious.exe")));
+    }
+
+    [Fact]
+    public async Task Restore_ValidManifestWithSupportedImageExtensions_SuccessfullyRestores()
+    {
+        string mapDir = Path.Combine(_songsDir, "8705 MultiExt Map");
+        string jpg = await MakeFile(mapDir, "bg1.jpg", "JPG_ORIGINAL");
+        string png = await MakeFile(mapDir, "bg2.png", "PNG_ORIGINAL");
+        string bmp = await MakeFile(mapDir, "bg3.bmp", "BMP_ORIGINAL");
+        string gif = await MakeFile(mapDir, "bg4.gif", "GIF_ORIGINAL");
+
+        var backup = await _backupService.CreateBackupSessionAsync(new[] { jpg, png, bmp, gif }, _songsDir);
+        Assert.True(backup.Success);
+        Assert.Equal(4, backup.BackedUpCount);
+
+        await File.WriteAllTextAsync(jpg, "REPLACED");
+        await File.WriteAllTextAsync(png, "REPLACED");
+        await File.WriteAllTextAsync(bmp, "REPLACED");
+        await File.WriteAllTextAsync(gif, "REPLACED");
+
+        var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
+        Assert.Equal(4, restore.RestoredCount);
+        Assert.Equal(0, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
+
+        Assert.Equal("JPG_ORIGINAL", await File.ReadAllTextAsync(jpg));
+        Assert.Equal("PNG_ORIGINAL", await File.ReadAllTextAsync(png));
+        Assert.Equal("BMP_ORIGINAL", await File.ReadAllTextAsync(bmp));
+        Assert.Equal("GIF_ORIGINAL", await File.ReadAllTextAsync(gif));
     }
 
     [Fact]
@@ -452,6 +546,8 @@ public class BackupServiceTests : IDisposable
         var restore = await _backupService.RestoreLastBackupAsync(songsFolderPath: _songsDir);
 
         Assert.Equal(1, restore.RestoredCount);
+        Assert.Equal(0, restore.SkippedCount);
+        Assert.Equal(0, restore.FailedCount);
         Assert.Equal("ORIGINAL", await File.ReadAllTextAsync(file));
     }
 
