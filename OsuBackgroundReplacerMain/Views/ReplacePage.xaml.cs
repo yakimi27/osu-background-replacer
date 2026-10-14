@@ -20,6 +20,10 @@ namespace OsuBackgroundReplacerMain.Views
         private CancellationTokenSource? _cts;
         private CancellationTokenSource? _folderScanCts;
         private bool _isProcessing = false;
+        private static readonly Microsoft.UI.Xaml.Media.Brush _transparentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        private Windows.ApplicationModel.DataTransfer.DataPackageView? _cachedDataView;
+        private bool _cachedIsFolder;
+        private bool _cachedIsImage;
 
         public ReplacePage()
         {
@@ -192,18 +196,21 @@ namespace OsuBackgroundReplacerMain.Views
 
         private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
             await FolderOperations.ChooseFolderManually(MainWindow.Current);
             UpdateFolderUI();
         }
 
         private async void BrowseImage_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
             await ImageOperations.ChooseImageManually(MainWindow.Current);
             UpdateImageUI();
         }
 
         private void AutoDetect_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
             string? detected = SettingsService.TryDetectOsuSongsPath();
             if (!string.IsNullOrEmpty(detected))
             {
@@ -217,10 +224,22 @@ namespace OsuBackgroundReplacerMain.Views
             }
         }
 
-        private void OpenFolder_Click(object sender, RoutedEventArgs e)
+        private async void OpenFolder_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
+
             string? path = FolderOperations.getPath();
-            if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+            {
+                string msg = string.IsNullOrEmpty(path)
+                    ? "No folder selected."
+                    : $"The folder '{path}' could not be found or does not exist.";
+                ShowInfo(msg, InfoBarSeverity.Error);
+                await MainWindow.ShowDialogAsync(msg, "Folder Not Found");
+                return;
+            }
+
+            try
             {
                 Process.Start(new ProcessStartInfo
                 {
@@ -228,41 +247,135 @@ namespace OsuBackgroundReplacerMain.Views
                     UseShellExecute = true
                 });
             }
+            catch (Exception ex)
+            {
+                ShowInfo($"Failed to open folder: {ex.Message}", InfoBarSeverity.Error);
+                await MainWindow.ShowDialogAsync($"Could not open folder in File Explorer:\n{ex.Message}", "Error Opening Folder");
+            }
         }
 
         private void ClearImage_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
             ImageOperations.setPath(null);
             UpdateImageUI();
         }
 
-        private void OnDragOver(object sender, DragEventArgs e)
+        private async void OnDragOver(object sender, DragEventArgs e)
         {
-            e.AcceptedOperation = DataPackageOperation.Copy;
+            if (_isProcessing)
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                return;
+            }
+
+            if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+                return;
+            }
+
+            if (ReferenceEquals(e.DataView, _cachedDataView))
+            {
+                if (ReferenceEquals(sender, FolderDropZone))
+                {
+                    e.AcceptedOperation = _cachedIsFolder ? DataPackageOperation.Copy : DataPackageOperation.None;
+                    SetDropZoneActive(FolderDropZone, _cachedIsFolder);
+                }
+                else if (ReferenceEquals(sender, ImageDropZone))
+                {
+                    e.AcceptedOperation = _cachedIsImage ? DataPackageOperation.Copy : DataPackageOperation.None;
+                    SetDropZoneActive(ImageDropZone, _cachedIsImage);
+                }
+                return;
+            }
+
+            var deferral = e.GetDeferral();
+            try
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                _cachedDataView = e.DataView;
+                _cachedIsFolder = items.Count > 0 && items[0] is Windows.Storage.StorageFolder;
+                _cachedIsImage = items.Count > 0 && items[0] is Windows.Storage.StorageFile file && Constants.IsSupportedImage(file.Name);
+
+                if (ReferenceEquals(sender, FolderDropZone))
+                {
+                    e.AcceptedOperation = _cachedIsFolder ? DataPackageOperation.Copy : DataPackageOperation.None;
+                    SetDropZoneActive(FolderDropZone, _cachedIsFolder);
+                }
+                else if (ReferenceEquals(sender, ImageDropZone))
+                {
+                    e.AcceptedOperation = _cachedIsImage ? DataPackageOperation.Copy : DataPackageOperation.None;
+                    SetDropZoneActive(ImageDropZone, _cachedIsImage);
+                }
+            }
+            catch
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         }
 
         private void FolderDropZone_DragLeave(object sender, DragEventArgs e)
         {
+            _cachedDataView = null;
+            SetDropZoneActive(FolderDropZone, false);
         }
 
         private void ImageDropZone_DragLeave(object sender, DragEventArgs e)
         {
+            _cachedDataView = null;
+            SetDropZoneActive(ImageDropZone, false);
+        }
+
+        private void SetDropZoneActive(Border dropZone, bool active)
+        {
+            if (active)
+            {
+                if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var accent) && accent is Microsoft.UI.Xaml.Media.Brush accentBrush)
+                {
+                    dropZone.BorderBrush = accentBrush;
+                }
+                if (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var bg) && bg is Microsoft.UI.Xaml.Media.Brush bgBrush)
+                {
+                    dropZone.Background = bgBrush;
+                }
+            }
+            else
+            {
+                if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var defaultStroke) && defaultStroke is Microsoft.UI.Xaml.Media.Brush strokeBrush)
+                {
+                    dropZone.BorderBrush = strokeBrush;
+                }
+                dropZone.Background = _transparentBrush;
+            }
         }
 
         private async void DropFolder(object sender, DragEventArgs e)
         {
+            _cachedDataView = null;
+            SetDropZoneActive(FolderDropZone, false);
+            if (_isProcessing) return;
             await FolderOperations.DragAndDropFolder(e);
             UpdateFolderUI();
         }
 
         private async void DropFile(object sender, DragEventArgs e)
         {
+            _cachedDataView = null;
+            SetDropZoneActive(ImageDropZone, false);
+            if (_isProcessing) return;
             await ImageOperations.DragAndDropImage(e);
             UpdateImageUI();
         }
 
         private async void Replace_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
+
             string? folder = FolderOperations.getPath();
             string? image = ImageOperations.getPath();
 
@@ -278,20 +391,30 @@ namespace OsuBackgroundReplacerMain.Views
                 return;
             }
 
-            if (SettingsService.Current.ConfirmBeforeReplace)
-            {
-                string confirmMsg = $"You are about to replace all background images in:\n'{folder}'\n\nwith:\n'{Path.GetFileName(image)}'.\n\nAre you sure you want to proceed?";
-                var confirm = await MainWindow.ShowDialogAsync(confirmMsg, "Confirm Replacement", "Yes, Replace", "Cancel");
-                if (confirm != ContentDialogResult.Primary) return;
-            }
+            bool isStandardOsu = folder.Contains("osu!\\Songs", StringComparison.OrdinalIgnoreCase) ||
+                                 folder.Contains("osu!/Songs", StringComparison.OrdinalIgnoreCase);
 
-            if (!folder.Contains("osu!\\Songs", StringComparison.OrdinalIgnoreCase) &&
-                !folder.Contains("osu!/Songs", StringComparison.OrdinalIgnoreCase))
+            if (SettingsService.Current.ConfirmBeforeReplace || !isStandardOsu)
             {
-                var warnResult = await MainWindow.ShowDialogAsync(
-                    "The selected folder does not appear to be an osu!\\Songs folder. Are you sure you want to continue?",
-                    "Warning", "Continue Anyway", "Cancel");
-                if (warnResult != ContentDialogResult.Primary) return;
+                string title;
+                string confirmMsg;
+                string primaryBtn;
+
+                if (!isStandardOsu)
+                {
+                    title = "Warning: Non-standard Songs Folder";
+                    confirmMsg = $"Warning: The selected folder does not appear to contain 'osu!\\Songs':\n'{folder}'\n\nAll beatmap background images in this directory will be replaced with:\n'{Path.GetFileName(image)}'.\n\nAre you sure you want to continue?";
+                    primaryBtn = "Continue Anyway";
+                }
+                else
+                {
+                    title = "Confirm Replacement";
+                    confirmMsg = $"You are about to replace all background images in:\n'{folder}'\n\nwith:\n'{Path.GetFileName(image)}'.\n\nAre you sure you want to proceed?";
+                    primaryBtn = "Yes, Replace";
+                }
+
+                var confirm = await MainWindow.ShowDialogAsync(confirmMsg, title, primaryBtn, "Cancel");
+                if (confirm != ContentDialogResult.Primary) return;
             }
 
             SetProcessing(true);
@@ -364,6 +487,8 @@ namespace OsuBackgroundReplacerMain.Views
 
         private async void Undo_Click(object sender, RoutedEventArgs e)
         {
+            if (_isProcessing) return;
+
             var backupService = new BackupService();
             var latestSession = backupService.GetLatestSessionInfo();
 
@@ -470,6 +595,8 @@ namespace OsuBackgroundReplacerMain.Views
             BrowseFolderButton.IsEnabled = !processing;
             BrowseImageButton.IsEnabled = !processing;
             AutoDetectButton.IsEnabled = !processing;
+            ClearImageButton.IsEnabled = !processing;
+            OpenFolderButton.IsEnabled = !processing && !string.IsNullOrEmpty(FolderOperations.getPath()) && Directory.Exists(FolderOperations.getPath());
             FolderDropZone.IsHitTestVisible = !processing;
             ImageDropZone.IsHitTestVisible = !processing;
 

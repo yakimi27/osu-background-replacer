@@ -77,12 +77,12 @@
                                 CornerRadius="6"
                                 BorderThickness="1.5"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                Background="{ThemeResource ControlFillColorTransparentBrush}"
+                                Background="Transparent"
                                 AllowDrop="True"
                                 DragOver="OnDragOver"
                                 DragLeave="FolderDropZone_DragLeave"
                                 Drop="DropFolder">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" IsHitTestVisible="False">
                                 <FontIcon Glyph="&#xED25;" FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 <TextBlock Text="Drag &amp; drop your osu! Songs folder here"
                                            Style="{ThemeResource BodyTextBlockStyle}"
@@ -149,12 +149,12 @@
                                 CornerRadius="6"
                                 BorderThickness="1.5"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                Background="{ThemeResource ControlFillColorTransparentBrush}"
+                                Background="Transparent"
                                 AllowDrop="True"
                                 DragOver="OnDragOver"
                                 DragLeave="ImageDropZone_DragLeave"
                                 Drop="DropFile">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" IsHitTestVisible="False">
                                 <FontIcon Glyph="&#xEB9F;" FontSize="22" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 <TextBlock Text="Drag &amp; drop replacement picture here (.jpg, .jpeg, .png)"
                                            Style="{ThemeResource BodyTextBlockStyle}"
@@ -186,7 +186,7 @@
                                     <TextBlock x:Name="ImageMetaTextBlock" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <Button Grid.Column="2" Click="ClearImage_Click" ToolTipService.ToolTip="Clear selection" VerticalAlignment="Center">
+                                <Button x:Name="ClearImageButton" Grid.Column="2" Click="ClearImage_Click" ToolTipService.ToolTip="Clear selection" VerticalAlignment="Center">
                                     <FontIcon Glyph="&#xE74D;" FontSize="14" />
                                 </Button>
                             </Grid>
@@ -214,7 +214,7 @@
                                           Toggled="BackupToggle_Toggled"
                                           OffContent="Off"
                                           OnContent="On" />
-                            <TextBlock Text="Save original backgrounds into %LocalAppData%\yakimi27\OsuBackgroundReplacer\Backups before replacing."
+                            <TextBlock Text="Save original backgrounds into %LocalAppData%\OsuBackgroundReplacer\Backups before replacing."
                                        Style="{ThemeResource CaptionTextBlockStyle}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>

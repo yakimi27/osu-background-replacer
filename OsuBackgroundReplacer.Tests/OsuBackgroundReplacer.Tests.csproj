@@ -30,6 +30,7 @@
     <Compile Include="..\OsuBackgroundReplacerMain\Models\LogEntry.cs" Link="Models\LogEntry.cs" />
     <Compile Include="..\OsuBackgroundReplacerMain\Services\LogService.cs" Link="Services\LogService.cs" />
     <Compile Include="..\OsuBackgroundReplacerMain\Logic\Operations.cs" Link="Logic\Operations.cs" />
+    <Compile Include="..\OsuBackgroundReplacerMain\Logic\Constants.cs" Link="Logic\Constants.cs" />
   </ItemGroup>
 
 </Project>
