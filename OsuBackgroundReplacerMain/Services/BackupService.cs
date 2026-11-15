@@ -750,6 +750,7 @@ namespace OsuBackgroundReplacerMain.Services
                 if (!Directory.Exists(other.Directory)) continue;
 
                 string fullOtherDir = Path.GetFullPath(other.Directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                var knownOtherFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 string manifestPath = Path.Combine(other.Directory, "manifest.json");
                 if (File.Exists(manifestPath))
@@ -762,11 +763,13 @@ namespace OsuBackgroundReplacerMain.Services
                             foreach (var entry in manifest.Entries)
                             {
                                 string backupFile = ResolveBackupFile(entry, other.Directory);
-                                if (File.Exists(backupFile) && Path.GetFullPath(backupFile).StartsWith(fullOtherDir, StringComparison.OrdinalIgnoreCase))
+                                string fullBackupFile = Path.GetFullPath(backupFile);
+                                if (File.Exists(backupFile) && fullBackupFile.StartsWith(fullOtherDir, StringComparison.OrdinalIgnoreCase))
                                 {
                                     if (!string.IsNullOrEmpty(entry.Sha256))
                                     {
                                         otherHashes.Add(entry.Sha256);
+                                        knownOtherFiles.Add(fullBackupFile);
                                     }
                                 }
                             }
@@ -780,6 +783,11 @@ namespace OsuBackgroundReplacerMain.Services
                 foreach (var otherFile in Directory.GetFiles(other.Directory, "*", SearchOption.AllDirectories))
                 {
                     if (string.Equals(Path.GetFileName(otherFile), "manifest.json", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (knownOtherFiles.Contains(Path.GetFullPath(otherFile)))
                     {
                         continue;
                     }

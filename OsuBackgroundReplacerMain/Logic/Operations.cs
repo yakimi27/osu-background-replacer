@@ -229,7 +229,7 @@ namespace OsuBackgroundReplacerMain.Logic
                 if (keepN > 0 && LastBackupResult != null)
                 {
                     backupService ??= new BackupService();
-                    backupService.CleanupOldSessions(keepN);
+                    await Task.Run(() => backupService.CleanupOldSessions(keepN), cancellationToken);
                 }
 
                 return replacedFiles;
