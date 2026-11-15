@@ -71,6 +71,20 @@
                                    Style="{ThemeResource BodyStrongTextBlockStyle}" />
                     </StackPanel>
 
+                    <StackPanel x:Name="TotalRestoredPanel" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                        <FontIcon Glyph="&#xE777;" FontSize="14" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                        <TextBlock x:Name="TotalRestoredTextBlock"
+                                   Text="0 restored"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="TotalFailedPanel" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                        <FontIcon Glyph="&#xEA39;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                        <TextBlock x:Name="TotalFailedTextBlock"
+                                   Text="0 failed"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon Glyph="&#xE823;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="LastRunTextBlock"
@@ -131,14 +145,38 @@
                             <Border Grid.Column="0" Width="32" Height="32" CornerRadius="6"
                                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                                     VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xEB9F;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                                <Grid>
+                                    <FontIcon Glyph="&#xE73E;" FontSize="16"
+                                              Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                              Visibility="{x:Bind SuccessVisibility}" />
+                                    <FontIcon Glyph="&#xEA39;" FontSize="16"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                              Visibility="{x:Bind FailureVisibility}" />
+                                </Grid>
                             </Border>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                <TextBlock Text="{x:Bind FolderName}"
-                                           Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                           TextTrimming="CharacterEllipsis" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{x:Bind FolderName}"
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{x:Bind StatusText}"
+                                               Visibility="{x:Bind FailureVisibility}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
                                 <TextBlock Text="{x:Bind FilePath}"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind ErrorMessage}"
+                                           Visibility="{x:Bind FailureMessageVisibility}"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Bind ErrorMessage}"
+                                           Visibility="{x:Bind SuccessMessageVisibility}"
                                            Style="{ThemeResource CaptionTextBlockStyle}"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                            TextTrimming="CharacterEllipsis" />

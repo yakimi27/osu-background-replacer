@@ -18,12 +18,19 @@ namespace OsuBackgroundReplacerMain.Views
         {
             this.InitializeComponent();
             this.Loaded += ActivityLogPage_Loaded;
-            LogService.EntriesChanged += RefreshList;
+            this.Unloaded += ActivityLogPage_Unloaded;
         }
 
         private void ActivityLogPage_Loaded(object sender, RoutedEventArgs e)
         {
+            LogService.EntriesChanged -= RefreshList;
+            LogService.EntriesChanged += RefreshList;
             RefreshList();
+        }
+
+        private void ActivityLogPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            LogService.EntriesChanged -= RefreshList;
         }
 
         private void RefreshList()
@@ -42,7 +49,8 @@ namespace OsuBackgroundReplacerMain.Views
                 items = items.Where(i =>
                     i.FolderName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     i.FileName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    i.FilePath.Contains(filter, StringComparison.OrdinalIgnoreCase));
+                    i.FilePath.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(i.ErrorMessage) && i.ErrorMessage.Contains(filter, StringComparison.OrdinalIgnoreCase)));
             }
 
             var itemList = items.ToList();
@@ -53,6 +61,14 @@ namespace OsuBackgroundReplacerMain.Views
             LogListView.Visibility = hasEntries ? Visibility.Visible : Visibility.Collapsed;
 
             TotalReplacedTextBlock.Text = $"{LogService.TotalReplacedCount:N0} backgrounds replaced";
+
+            int restoredCount = LogService.TotalRestoredCount;
+            TotalRestoredPanel.Visibility = restoredCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+            TotalRestoredTextBlock.Text = $"{restoredCount:N0} restored";
+
+            int failedCount = LogService.TotalFailureCount;
+            TotalFailedPanel.Visibility = failedCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+            TotalFailedTextBlock.Text = $"{failedCount:N0} failed";
 
             if (LogService.LastRunTime.HasValue)
             {

@@ -17,6 +17,8 @@ namespace OsuBackgroundReplacerMain.Services
         private static readonly Timer _flushTimer = new(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
         private static int _isFlushScheduled = 0;
 
+        private static int _replacedCount = 0;
+        private static int _restoredCount = 0;
         private static int _successCount = 0;
         private static int _failureCount = 0;
 
@@ -34,18 +36,27 @@ namespace OsuBackgroundReplacerMain.Services
 
         public static int MaxEntries { get; set; } = 5000;
 
-        public static int TotalReplacedCount => _successCount;
+        public static int TotalReplacedCount => _replacedCount;
+        public static int TotalRestoredCount => _restoredCount;
         public static int TotalSuccessCount => _successCount;
         public static int TotalFailureCount => _failureCount;
         public static DateTime? LastRunTime { get; private set; }
 
-        public static void AddEntry(string filePath, bool success = true, string? error = null)
+        public static void AddEntry(string filePath, bool success = true, string? error = null, bool isRestore = false)
         {
             var entry = LogEntry.CreateFromFilePath(filePath, success, error);
 
             if (success)
             {
                 Interlocked.Increment(ref _successCount);
+                if (isRestore)
+                {
+                    Interlocked.Increment(ref _restoredCount);
+                }
+                else
+                {
+                    Interlocked.Increment(ref _replacedCount);
+                }
             }
             else
             {
@@ -64,6 +75,7 @@ namespace OsuBackgroundReplacerMain.Services
             {
                 var entry = LogEntry.CreateFromFilePath(file, true, null);
                 Interlocked.Increment(ref _successCount);
+                Interlocked.Increment(ref _replacedCount);
                 _pendingEntries.Enqueue(entry);
             }
 
@@ -129,6 +141,8 @@ namespace OsuBackgroundReplacerMain.Services
                 Entries.Clear();
             }
 
+            Interlocked.Exchange(ref _replacedCount, 0);
+            Interlocked.Exchange(ref _restoredCount, 0);
             Interlocked.Exchange(ref _successCount, 0);
             Interlocked.Exchange(ref _failureCount, 0);
             LastRunTime = null;
