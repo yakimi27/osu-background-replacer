@@ -128,6 +128,11 @@ namespace OsuBackgroundReplacerMain
         {
             return await _dialogQueue.EnqueueAsync(async () =>
             {
+                if (Current?.DispatcherQueue == null)
+                {
+                    return ContentDialogResult.None;
+                }
+
                 if (Current.DispatcherQueue.HasThreadAccess)
                 {
                     return await ShowDialogInternal(content, title, primaryBtnText, closeBtnText);
@@ -160,9 +165,15 @@ namespace OsuBackgroundReplacerMain
 
         private static async Task<ContentDialogResult> ShowDialogInternal(string content, string title, string primaryButtonText, string? closeButtonText)
         {
+            var xamlRoot = Current?.Content?.XamlRoot;
+            if (xamlRoot == null)
+            {
+                return ContentDialogResult.None;
+            }
+
             ContentDialog dialog = new ContentDialog
             {
-                XamlRoot = Current.Content.XamlRoot,
+                XamlRoot = xamlRoot,
                 Style = Application.Current.Resources["DefaultContentDialogStyle"] as Style,
                 Title = title,
                 Content = content,
