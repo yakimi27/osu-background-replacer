@@ -67,7 +67,7 @@ On first launch, the application checks for legacy data previously stored under 
 ## Build Requirements
 
 - **Operating System**: Windows 10 version 1809 (Build 17763) or higher, or Windows 11.
-- **SDK**: [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (`net8.0-windows10.0.19041.0`).
+- **SDK**: [.NET 11.0 SDK](https://dotnet.microsoft.com/download/dotnet/11.0) (`net11.0-windows10.0.19041.0`).
 - **Platform Package**: Windows App SDK 1.8 (`Microsoft.WindowsAppSDK`).
 - **IDE**: Visual Studio 2022 (v17.8 or higher) with:
   - *.NET Desktop Development* workload
