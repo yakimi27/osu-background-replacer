@@ -53,6 +53,10 @@ namespace OsuBackgroundReplacerMain.Views
         private void ReplacePage_Unloaded(object sender, RoutedEventArgs e)
         {
             _isLoaded = false;
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+
             _folderScanCts?.Cancel();
             _folderScanCts?.Dispose();
             _folderScanCts = null;
@@ -198,14 +202,12 @@ namespace OsuBackgroundReplacerMain.Views
         {
             if (_isProcessing) return;
             await FolderOperations.ChooseFolderManually(MainWindow.Current);
-            UpdateFolderUI();
         }
 
         private async void BrowseImage_Click(object sender, RoutedEventArgs e)
         {
             if (_isProcessing) return;
             await ImageOperations.ChooseImageManually(MainWindow.Current);
-            UpdateImageUI();
         }
 
         private void AutoDetect_Click(object sender, RoutedEventArgs e)
@@ -215,7 +217,6 @@ namespace OsuBackgroundReplacerMain.Views
             if (!string.IsNullOrEmpty(detected))
             {
                 FolderOperations.setPath(detected);
-                UpdateFolderUI();
                 ShowInfo("osu! Songs directory detected successfully.", InfoBarSeverity.Success);
             }
             else
@@ -258,7 +259,6 @@ namespace OsuBackgroundReplacerMain.Views
         {
             if (_isProcessing) return;
             ImageOperations.setPath(null);
-            UpdateImageUI();
         }
 
         private async void OnDragOver(object sender, DragEventArgs e)
@@ -360,7 +360,6 @@ namespace OsuBackgroundReplacerMain.Views
             SetDropZoneActive(FolderDropZone, false);
             if (_isProcessing) return;
             await FolderOperations.DragAndDropFolder(e);
-            UpdateFolderUI();
         }
 
         private async void DropFile(object sender, DragEventArgs e)
@@ -369,7 +368,6 @@ namespace OsuBackgroundReplacerMain.Views
             SetDropZoneActive(ImageDropZone, false);
             if (_isProcessing) return;
             await ImageOperations.DragAndDropImage(e);
-            UpdateImageUI();
         }
 
         private async void Replace_Click(object sender, RoutedEventArgs e)
@@ -418,7 +416,11 @@ namespace OsuBackgroundReplacerMain.Views
             }
 
             SetProcessing(true);
-            _cts = new CancellationTokenSource();
+            _cts?.Cancel();
+            _cts?.Dispose();
+            var cts = new CancellationTokenSource();
+            _cts = cts;
+            var token = cts.Token;
 
             var progress = new Progress<ReplacementProgress>(p =>
             {
@@ -429,10 +431,10 @@ namespace OsuBackgroundReplacerMain.Views
 
             try
             {
-                List<string> replaced = await Operations.Replacement(progress, null, _cts.Token);
+                List<string> replaced = await Operations.Replacement(progress, null, token);
                 SetProcessing(false);
 
-                if (_cts.IsCancellationRequested)
+                if (token.IsCancellationRequested)
                 {
                     ShowInfo($"Operation cancelled. {replaced.Count:N0} backgrounds replaced before stopping.", InfoBarSeverity.Warning);
                 }
@@ -483,6 +485,14 @@ namespace OsuBackgroundReplacerMain.Views
                 SetProcessing(false);
                 ShowInfo($"Error during replacement: {ex.Message}", InfoBarSeverity.Error);
             }
+            finally
+            {
+                if (ReferenceEquals(_cts, cts))
+                {
+                    _cts = null;
+                }
+                cts.Dispose();
+            }
         }
 
         private async void Undo_Click(object sender, RoutedEventArgs e)
@@ -509,7 +519,12 @@ namespace OsuBackgroundReplacerMain.Views
             }
 
             SetProcessing(true);
-            _cts = new CancellationTokenSource();
+            _cts?.Cancel();
+            _cts?.Dispose();
+            var cts = new CancellationTokenSource();
+            _cts = cts;
+            var token = cts.Token;
+
             StatusInfoBar.IsOpen = false;
             ProgressSection.Visibility = Visibility.Visible;
             ReplacingProgressBar.Value = 0;
@@ -525,24 +540,25 @@ namespace OsuBackgroundReplacerMain.Views
 
             try
             {
-                var result = await backupService.RestoreLastBackupAsync(progress, _cts.Token, FolderOperations.getPath());
+                var result = await backupService.RestoreLastBackupAsync(progress, token, FolderOperations.getPath());
                 SetProcessing(false);
 
                 foreach (var item in result.Items)
                 {
                     if (item.Status == RestoreStatus.Restored)
                     {
-                        LogService.AddEntry(item.OriginalPath, true, "Restored from backup");
+                        LogService.AddEntry(item.OriginalPath, true, "Restored from backup", isRestore: true);
                     }
                     else if (item.Status == RestoreStatus.Failed)
                     {
-                        LogService.AddEntry(item.OriginalPath, false, $"Restore failed: {item.ErrorMessage}");
+                        LogService.AddEntry(item.OriginalPath, false, $"Restore failed: {item.ErrorMessage}", isRestore: true);
                     }
                     else if (item.Status == RestoreStatus.Skipped)
                     {
-                        LogService.AddEntry(string.IsNullOrWhiteSpace(item.OriginalPath) ? "Unknown" : item.OriginalPath, false, $"Restore skipped: {item.ErrorMessage}");
+                        LogService.AddEntry(string.IsNullOrWhiteSpace(item.OriginalPath) ? "Unknown" : item.OriginalPath, false, $"Restore skipped: {item.ErrorMessage}", isRestore: true);
                     }
                 }
+                LogService.Flush();
 
                 string summary = $"Undo Operation Summary:\n\n• Restored: {result.RestoredCount:N0}\n• Skipped: {result.SkippedCount:N0}\n• Failed: {result.FailedCount:N0}";
 
@@ -576,11 +592,25 @@ namespace OsuBackgroundReplacerMain.Views
                 await MainWindow.ShowDialogAsync($"Error during undo: {ex.Message}", "Undo Error");
                 ShowInfo($"Error during undo: {ex.Message}", InfoBarSeverity.Error);
             }
+            finally
+            {
+                if (ReferenceEquals(_cts, cts))
+                {
+                    _cts = null;
+                }
+                cts.Dispose();
+            }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            _cts?.Cancel();
+            try
+            {
+                _cts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
             CancelButton.IsEnabled = false;
         }
 
