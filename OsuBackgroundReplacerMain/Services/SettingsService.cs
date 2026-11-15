@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OsuBackgroundReplacerMain.Services
 {
@@ -15,6 +16,12 @@ namespace OsuBackgroundReplacerMain.Services
         public string AppTheme { get; set; } = "Default";
         public bool BackupOriginalBackgrounds { get; set; } = false;
         public int KeepLastNBackupSessions { get; set; } = 5;
+    }
+
+    [JsonSourceGenerationOptions(WriteIndented = true)]
+    [JsonSerializable(typeof(SettingsData))]
+    internal partial class SettingsJsonContext : JsonSerializerContext
+    {
     }
 
     public static class SettingsService
@@ -170,7 +177,7 @@ namespace OsuBackgroundReplacerMain.Services
                 if (File.Exists(SettingsFilePath))
                 {
                     string json = File.ReadAllText(SettingsFilePath);
-                    var data = JsonSerializer.Deserialize<SettingsData>(json);
+                    var data = JsonSerializer.Deserialize(json, SettingsJsonContext.Default.SettingsData);
                     if (data != null)
                     {
                         Current = data;
@@ -202,7 +209,7 @@ namespace OsuBackgroundReplacerMain.Services
                     Directory.CreateDirectory(dir);
                 }
 
-                string json = JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true });
+                string json = JsonSerializer.Serialize(Current, SettingsJsonContext.Default.SettingsData);
                 File.WriteAllText(SettingsFilePath, json);
                 SettingsChanged?.Invoke();
             }

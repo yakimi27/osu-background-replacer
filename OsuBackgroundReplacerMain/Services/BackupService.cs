@@ -40,6 +40,13 @@ namespace OsuBackgroundReplacerMain.Services
         public List<BackupManifestEntry> Entries { get; set; } = new();
     }
 
+    [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
+    [JsonSerializable(typeof(BackupManifest))]
+    [JsonSerializable(typeof(List<BackupManifestEntry>))]
+    internal partial class BackupJsonContext : JsonSerializerContext
+    {
+    }
+
     public class BackupSessionInfo
     {
         public string Directory { get; }
@@ -326,7 +333,7 @@ namespace OsuBackgroundReplacerMain.Services
                 };
 
                 string manifestPath = Path.Combine(sessionDir, "manifest.json");
-                string json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+                string json = JsonSerializer.Serialize(manifest, BackupJsonContext.Default.BackupManifest);
                 await File.WriteAllTextAsync(manifestPath, json);
                 return true;
             }
@@ -881,14 +888,13 @@ namespace OsuBackgroundReplacerMain.Services
 
         private static BackupManifest? ParseManifestJson(string json, string sessionDirectory)
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             try
             {
-                return JsonSerializer.Deserialize<BackupManifest>(json, options);
+                return JsonSerializer.Deserialize(json, BackupJsonContext.Default.BackupManifest);
             }
             catch
             {
-                var list = JsonSerializer.Deserialize<List<BackupManifestEntry>>(json, options);
+                var list = JsonSerializer.Deserialize(json, BackupJsonContext.Default.ListBackupManifestEntry);
                 return list == null
                     ? null
                     : new BackupManifest
