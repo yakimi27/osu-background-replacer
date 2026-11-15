@@ -189,7 +189,7 @@ namespace OsuBackgroundReplacerMain.Services
                 Current = new SettingsData();
             }
 
-            if (!IsFolderClearedInSession && string.IsNullOrWhiteSpace(Current.LastFolderPath))
+            if (Current.SaveLastFolderPath && !IsFolderClearedInSession && string.IsNullOrWhiteSpace(Current.LastFolderPath))
             {
                 string? detected = TryDetectOsuSongsPath();
                 if (!string.IsNullOrWhiteSpace(detected))
