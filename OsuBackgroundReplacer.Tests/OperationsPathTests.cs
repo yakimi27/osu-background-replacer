@@ -147,6 +147,7 @@ public class OperationsPathTests : IDisposable
 
         // Fresh launch state (IsFolderClearedInSession is false, LastFolderPath is empty)
         SettingsService.IsFolderClearedInSession = false;
+        SettingsService.Current.SaveLastFolderPath = true;
         SettingsService.Current.LastFolderPath = string.Empty;
         SettingsService.Save();
 
@@ -154,6 +155,24 @@ public class OperationsPathTests : IDisposable
         SettingsService.Load();
         Assert.Equal(detectedDir, SettingsService.Current.LastFolderPath);
         Assert.Equal(detectedDir, FolderOperations.getPath());
+    }
+
+    [Fact]
+    public void FolderOperations_AutoDetectOnLaunch_RespectsSaveLastFolderPathFalse()
+    {
+        string detectedDir = Path.Combine(_tempDirectory, "AutoDetectedSongsNoSave");
+        Directory.CreateDirectory(detectedDir);
+        SettingsService.CustomSongsDetector = () => detectedDir;
+
+        SettingsService.IsFolderClearedInSession = false;
+        SettingsService.Current.SaveLastFolderPath = false;
+        SettingsService.Current.LastFolderPath = string.Empty;
+        SettingsService.Save();
+
+        SettingsService.Load();
+        Assert.False(SettingsService.Current.SaveLastFolderPath);
+        Assert.Equal(string.Empty, SettingsService.Current.LastFolderPath);
+        Assert.Null(FolderOperations.getPath());
     }
 
     [Fact]

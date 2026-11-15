@@ -140,6 +140,35 @@ public class BackupServiceRetentionTests : IDisposable
         Assert.True(Directory.Exists(s3));
     }
 
+    [Fact]
+    public void CleanupOldSessions_UsesManifestHashesWithoutRehashingOtherSessionFiles()
+    {
+        // Session 1 has file A with content "Content V1"
+        string s1 = CreateFakeCompletedSession("session_1", 30, new List<(string name, string content)>
+        {
+            ("bg.jpg", "Content V1")
+        });
+        string hashV1 = BackupService.ComputeSha256(Path.Combine(s1, "bg.jpg"));
+
+        // Session 2 has a physical file whose manifest records hashV1, even if disk content was modified
+        // (proving CleanupOldSessions trusts manifest.json hashes instead of re-hashing every file in otherSessions)
+        string s2 = CreateFakeCompletedSession("session_2", 20, new List<(string name, string content)>
+        {
+            ("bg.jpg", "Content V1")
+        });
+        File.WriteAllText(Path.Combine(s2, "bg.jpg"), "Modified disk payload that would produce a different hash if re-hashed");
+
+        string s3 = CreateFakeCompletedSession("session_3", 10, new List<(string name, string content)>
+        {
+            ("other.jpg", "Other content")
+        });
+
+        var deleted = _backupService.CleanupOldSessions(2);
+
+        Assert.Contains(s1, deleted);
+        Assert.False(Directory.Exists(s1));
+    }
+
     private string CreateFakeCompletedSession(string dirName, int minutesAgo, List<(string name, string content)> files)
     {
         string dir = Path.Combine(_backupDir, dirName);

@@ -86,10 +86,13 @@ public class LogServiceTests : IDisposable
     {
         LogService.AddEntry("C:\\osu\\Songs\\map1\\bg.jpg", success: true);
         LogService.AddEntry("C:\\osu\\Songs\\map2\\bg.jpg", success: false, "err");
+        LogService.AddEntry("C:\\osu\\Songs\\map3\\bg.jpg", success: true, "Restored from backup", isRestore: true);
         LogService.Flush();
 
         Assert.True(LogService.Entries.Count > 0);
-        Assert.Equal(1, LogService.TotalSuccessCount);
+        Assert.Equal(2, LogService.TotalSuccessCount);
+        Assert.Equal(1, LogService.TotalReplacedCount);
+        Assert.Equal(1, LogService.TotalRestoredCount);
         Assert.Equal(1, LogService.TotalFailureCount);
 
         LogService.Clear();
@@ -98,6 +101,29 @@ public class LogServiceTests : IDisposable
         Assert.Equal(0, LogService.TotalSuccessCount);
         Assert.Equal(0, LogService.TotalFailureCount);
         Assert.Equal(0, LogService.TotalReplacedCount);
+        Assert.Equal(0, LogService.TotalRestoredCount);
         Assert.Null(LogService.LastRunTime);
+    }
+
+    [Fact]
+    public void RestoreEntries_DoNotIncrementTotalReplacedCount()
+    {
+        LogService.Clear();
+
+        LogService.AddEntry("C:\\osu\\Songs\\map1\\bg.jpg", success: true);
+        LogService.AddEntry("C:\\osu\\Songs\\map1\\bg.jpg", success: true, "Restored from backup", isRestore: true);
+        LogService.AddEntry("C:\\osu\\Songs\\map2\\bg.jpg", success: false, "Restore failed: IO error", isRestore: true);
+        LogService.Flush();
+
+        Assert.Equal(1, LogService.TotalReplacedCount);
+        Assert.Equal(1, LogService.TotalRestoredCount);
+        Assert.Equal(2, LogService.TotalSuccessCount);
+        Assert.Equal(1, LogService.TotalFailureCount);
+
+        var failedEntry = LogService.Entries[0];
+        Assert.False(failedEntry.IsSuccess);
+        Assert.Equal("Failed", failedEntry.StatusText);
+        Assert.True(failedEntry.HasErrorMessage);
+        Assert.Equal("Restore failed: IO error", failedEntry.ErrorMessage);
     }
 }
