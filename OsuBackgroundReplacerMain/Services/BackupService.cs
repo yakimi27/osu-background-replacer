@@ -115,10 +115,20 @@ namespace OsuBackgroundReplacerMain.Services
         public List<FileErrorInfo> Errors { get; set; } = new();
         public bool Success => FailedCount == 0;
 
+        private HashSet<string>? _backedUpPaths;
+        private int _cachedEntryCount = -1;
+
         public bool IsBackedUp(string filePath)
         {
-            string full = Path.GetFullPath(filePath);
-            return Entries.Any(e => string.Equals(e.OriginalPath, full, StringComparison.OrdinalIgnoreCase));
+            if (_backedUpPaths == null || _cachedEntryCount != Entries.Count)
+            {
+                _backedUpPaths = new HashSet<string>(
+                    Entries.Select(e => Path.GetFullPath(e.OriginalPath)),
+                    StringComparer.OrdinalIgnoreCase);
+                _cachedEntryCount = Entries.Count;
+            }
+
+            return _backedUpPaths.Contains(Path.GetFullPath(filePath));
         }
     }
 

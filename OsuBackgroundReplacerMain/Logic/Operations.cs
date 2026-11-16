@@ -137,15 +137,39 @@ namespace OsuBackgroundReplacerMain.Logic
                 if (LastBackupResult != null)
                 {
                     var backupResult = LastBackupResult;
-                    filesToReplace = allImageFiles.Where(backupResult.IsBackedUp).ToList();
-                    foreach (var skipped in allImageFiles.Except(filesToReplace))
+                    filesToReplace = new List<string>(allImageFiles.Count);
+                    List<string>? skippedFiles = null;
+
+                    foreach (var file in allImageFiles)
                     {
-                        string reason = backupResult.Errors.FirstOrDefault(e =>
-                            string.Equals(Path.GetFullPath(e.FilePath), skipped, StringComparison.OrdinalIgnoreCase))?.ErrorMessage
-                            ?? "Backup failed.";
-                        string message = $"Skipped, not replaced because backup failed: {reason}";
-                        LogService.AddEntry(skipped, false, message);
-                        LastReplacementErrors.Add(new FileErrorInfo(skipped, message));
+                        if (backupResult.IsBackedUp(file))
+                        {
+                            filesToReplace.Add(file);
+                        }
+                        else
+                        {
+                            skippedFiles ??= new List<string>();
+                            skippedFiles.Add(file);
+                        }
+                    }
+
+                    if (skippedFiles != null)
+                    {
+                        var errorByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var err in backupResult.Errors)
+                        {
+                            errorByPath.TryAdd(Path.GetFullPath(err.FilePath), err.ErrorMessage);
+                        }
+
+                        foreach (var skipped in skippedFiles)
+                        {
+                            string reason = errorByPath.TryGetValue(Path.GetFullPath(skipped), out var errMsg)
+                                ? errMsg
+                                : "Backup failed.";
+                            string message = $"Skipped, not replaced because backup failed: {reason}";
+                            LogService.AddEntry(skipped, false, message);
+                            LastReplacementErrors.Add(new FileErrorInfo(skipped, message));
+                        }
                     }
                 }
 
