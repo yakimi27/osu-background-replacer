@@ -42,21 +42,20 @@ namespace OsuBackgroundReplacerMain.Views
             }
 
             string filter = SearchBox.Text?.Trim() ?? string.Empty;
-            IEnumerable<LogEntry> items = LogService.Entries;
+            List<LogEntry> snapshot = LogService.GetEntriesSnapshot();
+            bool hasEntries = snapshot.Count > 0;
 
-            if (!string.IsNullOrEmpty(filter))
-            {
-                items = items.Where(i =>
+            List<LogEntry> itemList = string.IsNullOrEmpty(filter)
+                ? snapshot
+                : snapshot.Where(i =>
                     i.FolderName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     i.FileName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     i.FilePath.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(i.ErrorMessage) && i.ErrorMessage.Contains(filter, StringComparison.OrdinalIgnoreCase)));
-            }
+                    (!string.IsNullOrEmpty(i.ErrorMessage) && i.ErrorMessage.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
 
-            var itemList = items.ToList();
             LogListView.ItemsSource = itemList;
 
-            bool hasEntries = LogService.Entries.Count > 0;
             EmptyStateContainer.Visibility = hasEntries ? Visibility.Collapsed : Visibility.Visible;
             LogListView.Visibility = hasEntries ? Visibility.Visible : Visibility.Collapsed;
 
@@ -109,7 +108,7 @@ namespace OsuBackgroundReplacerMain.Views
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
-            if (LogService.Entries.Count == 0)
+            if (!LogService.HasEntries)
             {
                 LogNotificationInfoBar.Message = "Activity log is empty. Nothing to export.";
                 LogNotificationInfoBar.Severity = InfoBarSeverity.Warning;

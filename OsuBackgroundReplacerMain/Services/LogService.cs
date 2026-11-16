@@ -32,6 +32,28 @@ namespace OsuBackgroundReplacerMain.Services
             }
         }
 
+        public static int EntryCount
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return Entries.Count;
+                }
+            }
+        }
+
+        public static bool HasEntries
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return Entries.Count > 0;
+                }
+            }
+        }
+
         public static event Action? EntriesChanged;
 
         public static int MaxEntries { get; set; } = 5000;

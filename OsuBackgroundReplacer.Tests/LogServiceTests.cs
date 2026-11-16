@@ -126,4 +126,54 @@ public class LogServiceTests : IDisposable
         Assert.True(failedEntry.HasErrorMessage);
         Assert.Equal("Restore failed: IO error", failedEntry.ErrorMessage);
     }
+
+    [Fact]
+    public async Task SnapshotAndCountProperties_AreThreadSafeDuringConcurrentFlushes()
+    {
+        LogService.Clear();
+        Assert.False(LogService.HasEntries);
+        Assert.Equal(0, LogService.EntryCount);
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        var writerTask = Task.Run(() =>
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                LogService.AddEntry($"C:\\osu\\Songs\\map{i}\\bg.jpg", success: true);
+                if (i % 10 == 0)
+                {
+                    LogService.Flush();
+                }
+            }
+            LogService.Flush();
+        });
+
+        var readerTask = Task.Run(() =>
+        {
+            while (!writerTask.IsCompleted)
+            {
+                var snapshot = LogService.GetEntriesSnapshot();
+                int count = LogService.EntryCount;
+                bool hasEntries = LogService.HasEntries;
+
+                // Enumerating the snapshot must never throw InvalidOperationException
+                foreach (var entry in snapshot)
+                {
+                    Assert.NotNull(entry.FilePath);
+                }
+
+                Assert.True(count >= 0);
+                if (snapshot.Count > 0)
+                {
+                    Assert.True(hasEntries || LogService.EntryCount >= 0);
+                }
+            }
+        });
+
+        await Task.WhenAll(writerTask, readerTask);
+
+        Assert.True(LogService.HasEntries);
+        Assert.Equal(200, LogService.EntryCount);
+        Assert.Equal(200, LogService.GetEntriesSnapshot().Count);
+    }
 }
