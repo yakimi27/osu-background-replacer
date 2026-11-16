@@ -1,5 +1,6 @@
 # Local / personal folders
 iconPS/
+_*.md
 
 # Build & publish outputs
 bin/
