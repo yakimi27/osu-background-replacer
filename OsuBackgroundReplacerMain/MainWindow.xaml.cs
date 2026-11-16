@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 using OsuBackgroundReplacerMain.Services;
 using OsuBackgroundReplacerMain.Views;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace OsuBackgroundReplacerMain
@@ -20,6 +21,8 @@ namespace OsuBackgroundReplacerMain
         {
             this.InitializeComponent();
             Current = this;
+
+            this.AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "obr_icon.ico"));
 
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
