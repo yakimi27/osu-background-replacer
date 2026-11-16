@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="01ffe073-0e10-401f-a468-19acfbef6f6a"
-    Publisher="CN=Admin"
-    Version="1.0.0.0" />
+    Name="yakimi27.OsuBackgroundReplacer"
+    Publisher="CN=yakimi27"
+    Version="2.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="01ffe073-0e10-401f-a468-19acfbef6f6a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>OsuBackgroundReplacerMain</DisplayName>
-    <PublisherDisplayName>Admin</PublisherDisplayName>
+    <DisplayName>osu! Background Replacer</DisplayName>
+    <PublisherDisplayName>yakimi27</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -34,8 +34,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="OsuBackgroundReplacerMain"
-        Description="OsuBackgroundReplacerMain"
+        DisplayName="osu! Background Replacer"
+        Description="Crafted for batch updating osu! beatmap background art with speed and safety."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
