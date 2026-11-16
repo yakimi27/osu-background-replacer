@@ -149,7 +149,7 @@
                         </StackPanel>
 
                         <HyperlinkButton Grid.Column="2"
-                                         NavigateUri="https://github.com"
+                                         NavigateUri="https://github.com/yakimi27/osu-background-replacer"
                                          VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon Glyph="&#xE8A7;" FontSize="14" />
