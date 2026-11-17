@@ -37,8 +37,6 @@ Choose the distribution format from the [Releases](https://github.com/yakimi27/o
 > [!NOTE]
 > The installers use per-user installation (`PrivilegesRequired=lowest`) by default so WinUI 3 file/folder pickers and Drag & Drop are not blocked by UAC elevation / UIPI.
 
----
-
 ## Features
 
 - **Batch Background Replacement**: Scans all beatmap sets in your `Songs` directory and replaces background images across thousands of beatmaps in seconds.
@@ -49,8 +47,7 @@ Choose the distribution format from the [Releases](https://github.com/yakimi27/o
 - **Detailed Activity Logging**: Real-time event log with per-file success/failure statuses and export to file.
 - **Modern Windows 11 UI**: Fluent 2 / WinUI 3 design language with Mica material, Light/Dark/Default theme support, and responsive layouts.
 
----
-
+https://github.com/user-attachments/assets/1ad1a6e2-6748-4e6f-978a-e985fecfab16
 
 ## Usage
 
@@ -70,8 +67,6 @@ Choose the distribution format from the [Releases](https://github.com/yakimi27/o
 5. **View Results or Undo**:
    - Check the **Activity Log** for detailed per-file replacement outcomes.
    - Click **Undo last replacement** at any time to restore original backgrounds from the most recent backup session.
-
----
 
 ## Backup, Undo & Data Locations
 
@@ -96,16 +91,12 @@ All user configurations and backup files reside under a single unified root dire
 ### Automatic Migration
 On first launch, the application checks for legacy data previously stored under `%LocalAppData%\yakimi27\OsuBackgroundReplacer\`. Any existing backup sessions and settings are migrated to `%LocalAppData%\OsuBackgroundReplacer\` automatically without data loss.
 
----
-
 ## Important Notes
 
 > [!IMPORTANT]
 > - **Do not run as Administrator**: Running an unpackaged WinUI 3 app elevated can break Drag & Drop (due to Windows UIPI) and interfere with standard file/folder pickers.
 > - **Enable backups before large runs**: Keep **Backup original backgrounds** turned on if you may want to revert your beatmap backgrounds later.
 > - **Custom folder safety check**: If you target a folder outside a standard `osu!\Songs` directory, the app prompts for confirmation to prevent accidental bulk overwrites.
-
----
 
 ## Architecture
 
@@ -125,8 +116,6 @@ osu-background-replacer/
 ├── installer/                       # Inno Setup script (OsuBackgroundReplacer.iss) & release script
 └── OsuBackgroundReplacer.sln        # Visual Studio / .NET solution file
 ```
-
----
 
 ## Building & Packaging from Source
 
@@ -161,8 +150,6 @@ dotnet test
 - `PublishReadyToRun` is enabled for non-Debug configurations.
 - `PublishTrimmed` is enabled for **Release + Self-Contained** builds (`Configuration != Debug` and `SelfContained != false`) to reduce package size and startup time.
 - `PublishTrimmed` is explicitly **disabled** for **Debug** and **Framework-Dependent** (`SelfContained == false`) builds.
-
----
 
 ## License
 
